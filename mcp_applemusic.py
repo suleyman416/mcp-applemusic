@@ -1,4 +1,7 @@
+import json
 import subprocess
+import urllib.parse
+import urllib.request
 
 from mcp.server.fastmcp import FastMCP
 
@@ -60,6 +63,44 @@ def itunes_search(query: str) -> str:
     end tell
     """
     return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_search_catalog(query: str, limit: int = 5) -> str:
+    """
+    Search the global Apple Music / iTunes Store catalog (outside user library).
+
+    Args:
+        query: Search term (song title, artist, or album).
+        limit: Number of results to return (default 5, max 25).
+
+    Returns:
+        Formatted list of matching tracks from the global Apple Music catalog.
+    """
+    safe_limit = min(max(1, limit), 25)
+    encoded_query = urllib.parse.quote(query)
+    url = f"https://itunes.apple.com/search?term={encoded_query}&media=music&entity=song&limit={safe_limit}"
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            results = data.get("results", [])
+            if not results:
+                return f"No tracks found in Apple Music catalog for: '{query}'"
+
+            output = []
+            for item in results:
+                track_name = item.get("trackName", "Unknown")
+                artist_name = item.get("artistName", "Unknown")
+                collection_name = item.get("collectionName", "Unknown Album")
+                release_date = item.get("releaseDate", "")[:4]
+                output.append(f"{track_name} - {artist_name} ({collection_name}, {release_date})")
+
+            return "\n".join(output)
+    except Exception as e:
+        return f"Error querying iTunes catalog: {str(e)}"
+
 
 
 @mcp.tool()
