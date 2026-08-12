@@ -122,3 +122,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - This tool only works on macOS systems due to its AppleScript dependency
 - Requires Apple Music (formerly iTunes) to be installed
 - Apple Music subscription and iCloud Music Library tracks are fully supported
+- `itunes_search_catalog` queries the global Apple Music store (100M+ tracks) for metadata & discovery. Playback and playlist modifications (`itunes_add_to_playlist`) apply to tracks saved in your Apple Music Library due to AppleScript macOS boundaries.
