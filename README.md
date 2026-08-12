@@ -48,6 +48,7 @@ itunes_shuffle(enabled)                    # Enable or disable shuffle
 
 # Library & search
 itunes_search(query)                       # Search library for tracks
+itunes_search_catalog(query, limit)        # Search global Apple Music catalog outside library
 itunes_play_song(song)                     # Find and play a specific song
 
 # Playlist management
