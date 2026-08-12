@@ -230,5 +230,10 @@ def itunes_shuffle(enabled: bool) -> str:
     return run_applescript(script)
 
 
-if __name__ == "__main__":
+def main():
     mcp.run()
+
+
+if __name__ == "__main__":
+    main()
+
