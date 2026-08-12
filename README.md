@@ -1,6 +1,6 @@
 # MCP-AppleMusic
 
-A FastMCP server implementation for controlling Apple Music (formerly iTunes) on macOS through AppleScript commands.
+A FastMCP server for controlling Apple Music on macOS.
 
 ## Requirements
 
