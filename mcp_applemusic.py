@@ -1,11 +1,6 @@
 import subprocess
 
-try:
-    from mcp.server.fastmcp import FastMCP
-except ImportError:
-    # mcp >= 1.9 moved FastMCP to the standalone 'fastmcp' package.
-    # Install with: pip install fastmcp
-    from fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP
 
 
 def run_applescript(script: str) -> str:
