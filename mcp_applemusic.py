@@ -259,10 +259,237 @@ def itunes_set_volume(volume: int) -> str:
 
 
 @mcp.tool()
-def itunes_shuffle(enabled: bool) -> str:
-    """Enable or disable shuffle mode in Music."""
-    val = "true" if enabled else "false"
-    script = f'tell application "Music" to set shuffle enabled to {val}'
+def itunes_favorite_track(favorited: bool = True) -> str:
+    """
+    Favorite or unfavorite the currently playing track.
+
+    Args:
+        favorited: True to favorite/love the track, False to unfavorite.
+    """
+    val = "true" if favorited else "false"
+    script = f"""
+    tell application "Music"
+        if player state is playing then
+            set t to current track
+            set favorited of t to {val}
+            if {val} then
+                set status to "Favorited"
+            else
+                set status to "Unfavorited"
+            end if
+            return status & ": " & name of t & " - " & artist of t
+        else
+            return "Music is not currently playing."
+        end if
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_rate_track(stars: int) -> str:
+    """
+    Set a star rating (1 to 5 stars) for the currently playing track.
+
+    Args:
+        stars: Rating from 1 (lowest) to 5 (highest), or 0 to clear rating.
+    """
+    if not 0 <= stars <= 5:
+        return "Error: Rating stars must be between 0 and 5."
+    rating_val = stars * 20
+    script = f"""
+    tell application "Music"
+        if player state is playing then
+            set t to current track
+            set rating of t to {rating_val}
+            return "Set rating to " & {stars} & " star(s) for: " & name of t & " - " & artist of t
+        else
+            return "Music is not currently playing."
+        end if
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_get_lyrics() -> str:
+    """Get the lyrics for the currently playing track."""
+    script = """
+    tell application "Music"
+        if player state is playing then
+            set t to current track
+            set l to lyrics of t
+            if l is not "" then
+                return "Lyrics for " & name of t & " - " & artist of t & ":\n\n" & l
+            else
+                return "No lyrics found in Music app for: " & name of t & " - " & artist of t
+            end if
+        else
+            return "Music is not currently playing."
+        end if
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_seek(seconds: int) -> str:
+    """
+    Seek/jump to a specific timestamp in seconds in the currently playing track.
+
+    Args:
+        seconds: Position in seconds from the start of the song.
+    """
+    if seconds < 0:
+        return "Error: Seconds must be 0 or positive."
+    script = f"""
+    tell application "Music"
+        if player state is playing then
+            set player position to {seconds}
+            return "Jumped to " & {seconds} & "s in: " & name of current track
+        else
+            return "Music is not currently playing."
+        end if
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_get_position() -> str:
+    """Get elapsed time and total duration for the currently playing track."""
+    script = """
+    tell application "Music"
+        if player state is playing then
+            set pos to player position as integer
+            set dur to duration of current track as integer
+            set posMin to pos div 60
+            set posSec to pos mod 60
+            set durMin to dur div 60
+            set durSec to dur mod 60
+            return "Position: " & posMin & "m" & posSec & "s / " & durMin & "m" & durSec & "s (" & name of current track & ")"
+        else
+            return "Music is not currently playing."
+        end if
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_list_devices() -> str:
+    """List all available AirPlay audio output devices and their selection state."""
+    script = """
+    tell application "Music"
+        set output to ""
+        repeat with d in (every AirPlay device)
+            if selected of d then
+                set sel to "[Active]"
+            else
+                set sel to "[Available]"
+            end if
+            set output to output & name of d & " " & sel & "\n"
+        end repeat
+        return output
+    end tell
+    """
+    return run_applescript(script)
+
+
+
+@mcp.tool()
+def itunes_set_device(device_name: str) -> str:
+    """
+    Switch audio output to a specific AirPlay device by name (e.g. HomePod, AirPods, TV).
+
+    Args:
+        device_name: The exact name of the AirPlay device.
+    """
+    script = f"""
+    tell application "Music"
+        try
+            set selected of (first AirPlay device whose name is "{device_name}") to true
+            return "Selected AirPlay device: {device_name}"
+        on error
+            return "AirPlay device not found: {device_name}"
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_export_playlist(playlist: str, format: str = "json") -> str:
+    """
+    Export all tracks in a named playlist to JSON, CSV, or Markdown.
+
+    Args:
+        playlist: The name of the playlist to export.
+        format: Export format: 'json', 'csv', or 'markdown' (default 'json').
+    """
+    script = f"""
+    tell application "Music"
+        if not (exists playlist "{playlist}") then
+            return "Playlist not found: {playlist}"
+        end if
+        set output to ""
+        repeat with t in (tracks of playlist "{playlist}")
+            set output to output & (name of t) & "|||" & (artist of t) & "|||" & (album of t) & "\n"
+        end repeat
+        return output
+    end tell
+    """
+    raw = run_applescript(script)
+    if raw.startswith("Playlist not found") or raw.startswith("Error:"):
+        return raw
+
+    items = []
+    for line in raw.strip().splitlines():
+        parts = line.split("|||")
+        if len(parts) == 3:
+            items.append({"title": parts[0], "artist": parts[1], "album": parts[2]})
+
+    fmt = format.lower().strip()
+    if fmt == "csv":
+        lines = ["Title,Artist,Album"]
+        for i in items:
+            t = i["title"].replace('"', '""')
+            a = i["artist"].replace('"', '""')
+            al = i["album"].replace('"', '""')
+            lines.append(f'"{t}","{a}","{al}"')
+        return "\n".join(lines)
+    elif fmt == "markdown" or fmt == "md":
+        lines = [f"# Playlist: {playlist}", "", "| # | Title | Artist | Album |", "|---|---|---|---|"]
+        for idx, i in enumerate(items, 1):
+            lines.append(f'| {idx} | {i["title"]} | {i["artist"]} | {i["album"]} |')
+        return "\n".join(lines)
+    else:
+        return json.dumps({"playlist": playlist, "count": len(items), "tracks": items}, indent=2)
+
+
+@mcp.tool()
+def itunes_get_stats() -> str:
+    """Generate analytics summary of the Music library (total tracks, playlists, favorites, and hours)."""
+    script = """
+    tell application "Music"
+        set totalT to count of tracks of playlist "Library"
+        set totalP to count of user playlists
+        set totalDur to 0
+        set favCount to 0
+        
+        repeat with t in (tracks of playlist "Library")
+            try
+                set totalDur to totalDur + (duration of t)
+            end try
+            try
+                if favorited of t is true then set favCount to favCount + 1
+            end try
+        end repeat
+        
+        set totalHours to (totalDur / 3600) as integer
+        return "Library Statistics:\n" & "- Total Tracks: " & totalT & "\n- Total Playlists: " & totalP & "\n- Favorited Tracks: " & favCount & "\n- Total Playtime: ~" & totalHours & " hours"
+    end tell
+    """
     return run_applescript(script)
 
 
@@ -272,4 +499,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

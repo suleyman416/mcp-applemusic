@@ -34,10 +34,10 @@ Then, with **Claude Desktop**, add the following to `claude_desktop_config.json`
 
 ## Available Commands
 
-The following commands are available through the MCP server:
+The following **22 tools** are available through the MCP server:
 
 ```python
-# Playback control
+# Playback & track control
 itunes_play()                              # Start playback
 itunes_pause()                             # Pause playback
 itunes_next()                              # Skip to next track
@@ -45,17 +45,28 @@ itunes_previous()                          # Go to previous track
 itunes_current_track()                     # Get currently playing track info
 itunes_set_volume(volume)                  # Set volume (0–100)
 itunes_shuffle(enabled)                    # Enable or disable shuffle
+itunes_seek(seconds)                       # Seek/jump to timestamp in seconds
+itunes_get_position()                      # Get elapsed position & total duration
+itunes_favorite_track(favorited)           # Mark currently playing track as Loved / Favorite
+itunes_rate_track(stars)                   # Set star rating (1–5 stars)
+itunes_get_lyrics()                        # Get lyrics for currently playing track
 
 # Library & search
-itunes_search(query)                       # Search library for tracks
-itunes_search_catalog(query, limit)        # Search global Apple Music catalog outside library
+itunes_search(query)                       # Search local/iCloud library for tracks
+itunes_search_catalog(query, limit)        # Search global Apple Music catalog (100M+ tracks)
 itunes_play_song(song)                     # Find and play a specific song
 
-# Playlist management
+# Playlist & export management
 itunes_create_playlist(name)               # Create a new playlist
-itunes_add_to_playlist(song, playlist)     # Add a song to a named playlist
+itunes_add_to_playlist(song, playlist)     # Add a song to a named playlist (cross-playlist search)
 itunes_list_playlists()                    # List all playlists with track counts
 itunes_get_playlist_tracks(playlist)       # Get all tracks in a playlist
+itunes_export_playlist(playlist, format)   # Export playlist to JSON, CSV, or Markdown
+
+# Audio output & analytics
+itunes_list_devices()                      # List AirPlay audio output devices & active status
+itunes_set_device(device_name)             # Switch audio output device (AirPods, HomePod, TV)
+itunes_get_stats()                         # Generate library analytics (tracks, hours, favorites)
 ```
 
 ## Usage
