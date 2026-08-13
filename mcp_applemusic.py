@@ -493,11 +493,148 @@ def itunes_get_stats() -> str:
     return run_applescript(script)
 
 
+@mcp.tool()
+def itunes_move_playlist_track(playlist: str, from_index: int, to_index: int) -> str:
+    """
+    Move a track inside a playlist from one position (1-indexed) to another position.
+
+    Args:
+        playlist: The name of the playlist to edit.
+        from_index: The current 1-indexed position of the track to move.
+        to_index: The target 1-indexed position to move the track to.
+    """
+    if from_index < 1 or to_index < 1:
+        return "Error: Position indices must be 1 or greater."
+    script = f"""
+    tell application "Music"
+        if not (exists playlist "{playlist}") then
+            return "Playlist not found: {playlist}"
+        end if
+        set totalT to count of tracks of playlist "{playlist}"
+        if {from_index} > totalT or {to_index} > totalT then
+            return "Error: Index out of range (playlist has " & totalT & " tracks)."
+        end if
+        try
+            if {to_index} < {from_index} then
+                move track {from_index} of playlist "{playlist}" to before track {to_index} of playlist "{playlist}"
+            else
+                move track {from_index} of playlist "{playlist}" to after track {to_index} of playlist "{playlist}"
+            end if
+            set tName to name of track {to_index} of playlist "{playlist}"
+            return "Moved track from position " & {from_index} & " to " & {to_index} & " (" & tName & ")"
+        on error e
+            return "Error moving track: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_remove_from_playlist(song: str, playlist: str) -> str:
+    """
+    Remove a track from a playlist by song title.
+
+    Args:
+        song: The title of the song to remove.
+        playlist: The name of the playlist to remove it from.
+    """
+    script = f"""
+    tell application "Music"
+        if not (exists playlist "{playlist}") then
+            return "Playlist not found: {playlist}"
+        end if
+        try
+            set tList to (every track of playlist "{playlist}" whose name contains "{song}")
+            if tList is not {{}} then
+                set tName to name of item 1 of tList
+                delete item 1 of tList
+                return "Removed '" & tName & "' from playlist '{playlist}'"
+            else
+                return "Track '{song}' not found in playlist '{playlist}'"
+            end if
+        on error e
+            return "Error removing track: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_sort_playlist(playlist: str, sort_by: str = "title") -> str:
+    """
+    Sort all tracks in a playlist alphabetically by 'title', 'artist', or 'album'.
+
+    Args:
+        playlist: The name of the playlist to sort.
+        sort_by: Attribute to sort by: 'title', 'artist', or 'album' (default 'title').
+    """
+    script = f"""
+    tell application "Music"
+        if not (exists playlist "{playlist}") then
+            return "Playlist not found: {playlist}"
+        end if
+        set output to ""
+        repeat with t in (tracks of playlist "{playlist}")
+            set output to output & (database ID of t as string) & "|||" & (name of t) & "|||" & (artist of t) & "|||" & (album of t) & "\n"
+        end repeat
+        return output
+    end tell
+    """
+    raw = run_applescript(script)
+    if raw.startswith("Playlist not found") or raw.startswith("Error:"):
+        return raw
+
+    items = []
+    for line in raw.strip().splitlines():
+        parts = line.split("|||")
+        if len(parts) == 4:
+            items.append({"id": parts[0], "name": parts[1], "artist": parts[2], "album": parts[3]})
+
+    key = sort_by.lower().strip()
+    if key == "artist":
+        items.sort(key=lambda x: (x["artist"].lower(), x["name"].lower()))
+    elif key == "album":
+        items.sort(key=lambda x: (x["album"].lower(), x["name"].lower()))
+    else:
+        items.sort(key=lambda x: x["name"].lower())
+
+    ids_str = "{" + ", ".join([f'"{i["id"]}"' for i in items]) + "}"
+    reorder_script = f"""
+    tell application "Music"
+        set p to playlist "{playlist}"
+        set idList to {ids_str}
+        set oldCount to count of tracks of p
+        
+        repeat with dbID in idList
+            repeat with userP in (every user playlist)
+                if name of userP is not "{playlist}" then
+                    try
+                        set matching to (first track of userP whose database ID is (dbID as integer))
+                        duplicate matching to p
+                        exit repeat
+                    end try
+                end if
+            end repeat
+        end repeat
+        
+        repeat with i from 1 to oldCount
+            delete track 1 of p
+        end repeat
+        
+        return "Sorted playlist '{playlist}' by {key} (" & (count of tracks of p) & " tracks)."
+    end tell
+    """
+    return run_applescript(reorder_script)
+
+
 def main():
     mcp.run()
 
 
 if __name__ == "__main__":
     main()
+
 
 

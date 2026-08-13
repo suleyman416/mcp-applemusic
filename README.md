@@ -34,7 +34,7 @@ Then, with **Claude Desktop**, add the following to `claude_desktop_config.json`
 
 ## Available Commands
 
-The following **22 tools** are available through the MCP server:
+The following **25 tools** are available through the MCP server:
 
 ```python
 # Playback & track control
@@ -59,6 +59,9 @@ itunes_play_song(song)                     # Find and play a specific song
 # Playlist & export management
 itunes_create_playlist(name)               # Create a new playlist
 itunes_add_to_playlist(song, playlist)     # Add a song to a named playlist (cross-playlist search)
+itunes_remove_from_playlist(song, playlist)# Remove a track from a playlist by song title
+itunes_move_playlist_track(playlist, from, to) # Move track from one position to another
+itunes_sort_playlist(playlist, sort_by)    # Sort playlist by 'title', 'artist', or 'album'
 itunes_list_playlists()                    # List all playlists with track counts
 itunes_get_playlist_tracks(playlist)       # Get all tracks in a playlist
 itunes_export_playlist(playlist, format)   # Export playlist to JSON, CSV, or Markdown
