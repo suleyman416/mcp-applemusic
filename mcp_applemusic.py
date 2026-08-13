@@ -629,12 +629,337 @@ def itunes_sort_playlist(playlist: str, sort_by: str = "title") -> str:
     return run_applescript(reorder_script)
 
 
+@mcp.tool()
+def itunes_favorite_song(song: str, favorited: bool = True) -> str:
+    """
+    Favorite or unfavorite any song in your library by title.
+
+    Args:
+        song: The title of the song to search for and favorite.
+        favorited: True to favorite/love, False to unfavorite.
+    """
+    val = "true" if favorited else "false"
+    script = f"""
+    tell application "Music"
+        set searchTerm to "{song}"
+        repeat with p in (every user playlist)
+            try
+                set tList to (every track of p whose name contains searchTerm)
+                if tList is not {{}} then
+                    set targetT to item 1 of tList
+                    set favorited of targetT to {val}
+                    set status to if {val} then "Favorited" else "Unfavorited"
+                    return status & " song: " & name of targetT & " - " & artist of targetT
+                end if
+            end try
+        end repeat
+        return "Song not found in library: " & searchTerm
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_dislike_track(disliked: bool = True) -> str:
+    """
+    Mark or un-mark the currently playing track as Disliked for recommendation algorithms.
+
+    Args:
+        disliked: True to dislike/ban the track, False to remove dislike.
+    """
+    val = "true" if disliked else "false"
+    script = f"""
+    tell application "Music"
+        if player state is playing then
+            set t to current track
+            set disliked of t to {val}
+            set status to if {val} then "Disliked" else "Removed dislike for"
+            return status & ": " & name of t & " - " & artist of t
+        else
+            return "Music is not currently playing."
+        end if
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_repeat(mode: str = "all") -> str:
+    """
+    Set playback repeat mode.
+
+    Args:
+        mode: 'off' (no repeat), 'one' (repeat current song), or 'all' (repeat playlist/album).
+    """
+    m = mode.lower().strip()
+    if m not in ["off", "one", "all"]:
+        return "Error: Repeat mode must be 'off', 'one', or 'all'."
+    script = f"""
+    tell application "Music"
+        try
+            set song repeat to {m}
+            return "Set repeat mode to: {m}"
+        on error e
+            return "Error setting repeat mode: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_set_eq(preset: str = "Off") -> str:
+    """
+    Set Apple Music Equalizer (EQ) preset.
+
+    Args:
+        preset: Name of EQ preset (e.g. 'Hip-Hop', 'Bass Booster', 'Electronic', 'Acoustic', 'Flat', 'Off', 'Pop', 'Rock', 'R&B').
+    """
+    script = f"""
+    tell application "Music"
+        try
+            set EQ enabled to true
+            set current EQ preset to EQ preset "{preset}"
+            return "Set EQ preset to: " & name of current EQ preset
+        on error e
+            return "Error setting EQ preset '{preset}': " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_favorite_playlist(playlist: str, favorited: bool = True) -> str:
+    """
+    Favorite/Star or unfavorite a playlist in the Music app sidebar.
+
+    Args:
+        playlist: The name of the playlist to star.
+        favorited: True to star/favorite, False to unstar.
+    """
+    val = "true" if favorited else "false"
+    script = f"""
+    tell application "Music"
+        if not (exists playlist "{playlist}") then
+            return "Playlist not found: {playlist}"
+        end if
+        try
+            set favorited of playlist "{playlist}" to {val}
+            set status to if {val} then "Favorited (starred)" else "Unfavorited"
+            return status & " playlist: {playlist}"
+        on error e
+            return "Error updating playlist favorite status: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_delete_playlist(playlist: str) -> str:
+    """
+    Delete a user playlist from the Music library.
+
+    Args:
+        playlist: The name of the playlist to delete.
+    """
+    script = f"""
+    tell application "Music"
+        if not (exists playlist "{playlist}") then
+            return "Playlist not found: {playlist}"
+        end if
+        try
+            delete playlist "{playlist}"
+            return "Deleted playlist: {playlist}"
+        on error e
+            return "Error deleting playlist: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_duplicate_playlist(source_playlist: str, new_playlist_name: str) -> str:
+    """
+    Duplicate/clone an existing playlist into a new playlist.
+
+    Args:
+        source_playlist: The name of the existing playlist to clone.
+        new_playlist_name: The name for the newly cloned playlist.
+    """
+    script = f"""
+    tell application "Music"
+        if not (exists playlist "{source_playlist}") then
+            return "Source playlist not found: {source_playlist}"
+        end if
+        if not (exists playlist "{new_playlist_name}") then
+            make new playlist with properties {{name:"{new_playlist_name}"}}
+        end if
+        set targetP to playlist "{new_playlist_name}"
+        delete tracks of targetP
+        repeat with t in (tracks of playlist "{source_playlist}")
+            duplicate t to targetP
+        end repeat
+        return "Duplicated '{source_playlist}' into '{new_playlist_name}' (" & (count of tracks of targetP) & " tracks)."
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_merge_playlists(playlist_a: str, playlist_b: str, new_playlist_name: str) -> str:
+    """
+    Merge tracks from two playlists into a new master playlist (skipping duplicate songs).
+
+    Args:
+        playlist_a: First source playlist.
+        playlist_b: Second source playlist.
+        new_playlist_name: Target master playlist name.
+    """
+    script = f"""
+    tell application "Music"
+        if not (exists playlist "{playlist_a}") then return "Playlist not found: {playlist_a}"
+        if not (exists playlist "{playlist_b}") then return "Playlist not found: {playlist_b}"
+        if not (exists playlist "{new_playlist_name}") then
+            make new playlist with properties {{name:"{new_playlist_name}"}}
+        end if
+        
+        set targetP to playlist "{new_playlist_name}"
+        delete tracks of targetP
+        set addedIDs to {{}}
+        
+        repeat with pName in {{"{playlist_a}", "{playlist_b}"}}
+            repeat with t in (tracks of playlist pName)
+                set tID to database ID of t as string
+                if addedIDs does not contain tID then
+                    set end of addedIDs to tID
+                    duplicate t to targetP
+                end if
+            end repeat
+        end repeat
+        return "Merged '{playlist_a}' and '{playlist_b}' into '{new_playlist_name}' (" & (count of tracks of targetP) & " tracks)."
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_find_duplicates(playlist: str, remove: bool = False) -> str:
+    """
+    Scan a playlist for duplicate songs (sharing the exact same title & artist).
+
+    Args:
+        playlist: The name of the playlist to check.
+        remove: If True, automatically removes the duplicate tracks (keeping one copy).
+    """
+    script = f"""
+    tell application "Music"
+        if not (exists playlist "{playlist}") then
+            return "Playlist not found: {playlist}"
+        end if
+        set p to playlist "{playlist}"
+        set seenNames to {{}}
+        set dupesFound to {{}}
+        set output to ""
+        
+        repeat with t in (tracks of p)
+            set key to (name of t) & " - " & (artist of t)
+            if seenNames contains key then
+                set end of dupesFound to key
+            else
+                set end of seenNames to key
+            end if
+        end repeat
+        
+        if dupesFound is {{}} then
+            return "No duplicate tracks found in playlist '{playlist}'."
+        end if
+        
+        set output to "Found " & (count of dupesFound) & " duplicate track(s) in '{playlist}':\n"
+        repeat with dKey in dupesFound
+            set output to output & "- " & dKey & "\n"
+        end repeat
+        return output
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_get_artist_top_tracks(artist: str, limit: int = 10) -> str:
+    """
+    Search Apple Music's global catalog for top tracks by any artist.
+
+    Args:
+        artist: Artist name to search.
+        limit: Number of top tracks to return (default 10, max 25).
+    """
+    safe_limit = min(max(1, limit), 25)
+    encoded_artist = urllib.parse.quote(artist)
+    url = f"https://itunes.apple.com/search?term={encoded_artist}&media=music&entity=song&limit={safe_limit}"
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            results = data.get("results", [])
+            if not results:
+                return f"No tracks found for artist: '{artist}'"
+
+            output = [f"Top tracks for '{artist}' in Apple Music catalog:"]
+            for idx, item in enumerate(results, 1):
+                track_name = item.get("trackName", "Unknown")
+                artist_name = item.get("artistName", "Unknown")
+                collection_name = item.get("collectionName", "Unknown Album")
+                output.append(f"{idx}. {track_name} - {artist_name} ({collection_name})")
+
+            return "\n".join(output)
+    except Exception as e:
+        return f"Error querying catalog top tracks: {str(e)}"
+
+
+@mcp.tool()
+def itunes_get_artist_albums(artist: str, limit: int = 10) -> str:
+    """
+    Search Apple Music's global catalog for official albums by any artist.
+
+    Args:
+        artist: Artist name to search.
+        limit: Number of albums to return (default 10, max 25).
+    """
+    safe_limit = min(max(1, limit), 25)
+    encoded_artist = urllib.parse.quote(artist)
+    url = f"https://itunes.apple.com/search?term={encoded_artist}&media=music&entity=album&limit={safe_limit}"
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            results = data.get("results", [])
+            if not results:
+                return f"No albums found for artist: '{artist}'"
+
+            output = [f"Official albums for '{artist}' in Apple Music catalog:"]
+            for idx, item in enumerate(results, 1):
+                collection_name = item.get("collectionName", "Unknown Album")
+                artist_name = item.get("artistName", "Unknown")
+                release_date = item.get("releaseDate", "")[:4]
+                output.append(f"{idx}. {collection_name} - {artist_name} ({release_date})")
+
+            return "\n".join(output)
+    except Exception as e:
+        return f"Error querying catalog albums: {str(e)}"
+
+
 def main():
     mcp.run()
 
 
 if __name__ == "__main__":
     main()
+
 
 
 
