@@ -32,7 +32,7 @@ Then, with **Claude Desktop**, add the following to `claude_desktop_config.json`
 
 ## Available Commands
 
-The following **25 tools** are available through the MCP server:
+The following **36 tools** are available through the MCP server:
 
 ```python
 # Playback & track control
@@ -43,15 +43,21 @@ itunes_previous()                          # Go to previous track
 itunes_current_track()                     # Get currently playing track info
 itunes_set_volume(volume)                  # Set volume (0–100)
 itunes_shuffle(enabled)                    # Enable or disable shuffle
+itunes_repeat(mode)                        # Set repeat mode ('off', 'one', 'all')
 itunes_seek(seconds)                       # Seek/jump to timestamp in seconds
 itunes_get_position()                      # Get elapsed position & total duration
-itunes_favorite_track(favorited)           # Mark currently playing track as Loved / Favorite
+itunes_favorite_track(favorited)           # Favorite or unfavorite currently playing track
+itunes_favorite_song(song, favorited)      # Favorite or unfavorite any song by title
+itunes_dislike_track(disliked)             # Mark current track as Disliked for algorithms
 itunes_rate_track(stars)                   # Set star rating (1–5 stars)
 itunes_get_lyrics()                        # Get lyrics for currently playing track
+itunes_set_eq(preset)                      # Set Apple Music Equalizer preset (e.g. 'Hip-Hop', 'Bass Booster')
 
-# Library & search
+# Library, catalog & artist search
 itunes_search(query)                       # Search local/iCloud library for tracks
 itunes_search_catalog(query, limit)        # Search global Apple Music catalog (100M+ tracks)
+itunes_get_artist_top_tracks(artist, limit)# Get top 10 songs for any artist in global catalog
+itunes_get_artist_albums(artist, limit)    # Get official albums for any artist in global catalog
 itunes_play_song(song)                     # Find and play a specific song
 
 # Playlist & export management
@@ -60,6 +66,11 @@ itunes_add_to_playlist(song, playlist)     # Add a song to a named playlist (cro
 itunes_remove_from_playlist(song, playlist)# Remove a track from a playlist by song title
 itunes_move_playlist_track(playlist, from, to) # Move track from one position to another
 itunes_sort_playlist(playlist, sort_by)    # Sort playlist by 'title', 'artist', or 'album'
+itunes_favorite_playlist(playlist, favorited)# Star or unstar a playlist in the sidebar
+itunes_duplicate_playlist(source, new_name)# Clone an existing playlist into a new one
+itunes_merge_playlists(play_a, play_b, new)# Merge two playlists into a new master playlist
+itunes_find_duplicates(playlist, remove)   # Detect duplicate tracks in a playlist
+itunes_delete_playlist(playlist)           # Delete a user playlist
 itunes_list_playlists()                    # List all playlists with track counts
 itunes_get_playlist_tracks(playlist)       # Get all tracks in a playlist
 itunes_export_playlist(playlist, format)   # Export playlist to JSON, CSV, or Markdown
