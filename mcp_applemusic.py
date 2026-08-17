@@ -312,24 +312,61 @@ def itunes_rate_track(stars: int) -> str:
 
 
 @mcp.tool()
-def itunes_get_lyrics() -> str:
-    """Get the lyrics for the currently playing track."""
-    script = """
-    tell application "Music"
-        if player state is playing then
-            set t to current track
-            set l to lyrics of t
-            if l is not "" then
-                return "Lyrics for " & name of t & " - " & artist of t & ":\n\n" & l
-            else
-                return "No lyrics found in Music app for: " & name of t & " - " & artist of t
-            end if
-        else
-            return "Music is not currently playing."
-        end if
-    end tell
+def itunes_get_lyrics(song: str = "") -> str:
     """
-    return run_applescript(script)
+    Get lyrics for the currently playing track (or search lyrics for any song by title/artist).
+    Uses embedded library lyrics first, with instant fallback to global lyrics database.
+
+    Args:
+        song: Optional title or 'Title Artist' of a specific song to search lyrics for. If empty, uses currently playing track.
+    """
+    artist = ""
+    title = song.strip()
+    embedded_lyrics = ""
+
+    if not title:
+        script = """
+        tell application "Music"
+            if player state is playing then
+                set t to current track
+                return (name of t) & "|||" & (artist of t) & "|||" & (lyrics of t)
+            else
+                return "NOT_PLAYING"
+            end if
+        end tell
+        """
+        raw = run_applescript(script)
+        if raw == "NOT_PLAYING" or raw.startswith("Error:"):
+            return "Music is not currently playing. Specify a song title (e.g. itunes_get_lyrics('Location Dave')) to search."
+        parts = raw.split("|||")
+        if len(parts) >= 2:
+            title = parts[0]
+            artist = parts[1]
+            if len(parts) >= 3 and parts[2].strip():
+                embedded_lyrics = parts[2].strip()
+
+    if embedded_lyrics:
+        return f"Lyrics for '{title}' - {artist} (from Library):\n\n{embedded_lyrics}"
+
+    q = f"{title} {artist}".strip()
+    try:
+        url = f"https://lrclib.net/api/search?q={urllib.parse.quote(q)}"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            if isinstance(data, list) and len(data) > 0:
+                for item in data:
+                    lyrics = item.get("plainLyrics") or item.get("syncedLyrics")
+                    if lyrics:
+                        t_name = item.get("trackName", title)
+                        a_name = item.get("artistName", artist)
+                        return f"Lyrics for '{t_name}' - {a_name}:\n\n{lyrics}"
+    except Exception:
+        pass
+
+    return f"No lyrics found for: '{q}'"
+
+
 
 
 @mcp.tool()
