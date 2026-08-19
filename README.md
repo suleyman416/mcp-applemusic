@@ -32,7 +32,7 @@ Then, with **Claude Desktop**, add the following to `claude_desktop_config.json`
 
 ## Available Commands
 
-The following **36 tools** are available through the MCP server:
+The following **40 tools** are available through the MCP server:
 
 ```python
 # Playback & track control
@@ -50,7 +50,7 @@ itunes_favorite_track(favorited)           # Favorite or unfavorite currently pl
 itunes_favorite_song(song, favorited)      # Favorite or unfavorite any song by title
 itunes_dislike_track(disliked)             # Mark current track as Disliked for algorithms
 itunes_rate_track(stars)                   # Set star rating (1–5 stars)
-itunes_get_lyrics()                        # Get lyrics for currently playing track
+itunes_get_lyrics(song)                    # Get lyrics for currently playing track or searched song
 itunes_set_eq(preset)                      # Set Apple Music Equalizer preset (e.g. 'Hip-Hop', 'Bass Booster')
 
 # Library, catalog & artist search
@@ -75,7 +75,13 @@ itunes_list_playlists()                    # List all playlists with track count
 itunes_get_playlist_tracks(playlist)       # Get all tracks in a playlist
 itunes_export_playlist(playlist, format)   # Export playlist to JSON, CSV, or Markdown
 
-# Audio output & analytics
+# Listening journal & monthly replay (NEW)
+itunes_get_monthly_replay(year, month)     # Generate Apple Music Replay report (hours, top songs/artists)
+itunes_get_listening_history(limit, artist)# Chronological playback journal with timestamps & skips
+itunes_get_listening_stats_by_date(start, end) # Custom date-range listening analytics & top charts
+itunes_log_current_play()                  # Manually record current track to journal database
+
+# Audio output & library analytics
 itunes_list_devices()                      # List AirPlay audio output devices & active status
 itunes_set_device(device_name)             # Switch audio output device (AirPods, HomePod, TV)
 itunes_get_stats()                         # Generate library analytics (tracks, hours, favorites)

@@ -1,5 +1,10 @@
+import datetime
 import json
+from pathlib import Path
+import sqlite3
 import subprocess
+import threading
+import time
 import urllib.parse
 import urllib.request
 
@@ -14,8 +19,136 @@ def run_applescript(script: str) -> str:
     return result.stdout.strip()
 
 
+# --- Listening Journal & Analytics Persistence Layer ---
+DB_PATH = Path.home() / ".mcp_applemusic_history.db"
+
+
+def _init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS plays (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            track_name TEXT,
+            artist_name TEXT,
+            album_name TEXT,
+            duration_sec INTEGER,
+            played_sec INTEGER,
+            skipped INTEGER,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+def _log_play(track_name: str, artist_name: str, album_name: str, duration_sec: int, played_sec: int, skipped: int):
+    if not track_name:
+        return
+    try:
+        _init_db()
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cursor.execute("""
+            INSERT INTO plays (track_name, artist_name, album_name, duration_sec, played_sec, skipped, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (track_name, artist_name, album_name, duration_sec, played_sec, skipped, now_str))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+
+# Background daemon tracker for automated listening history & scrobbling
+_current_track_info = {"key": None, "track": None, "artist": None, "album": None, "duration": 0, "seconds_listened": 0, "last_pos": 0}
+_tracker_lock = threading.Lock()
+
+
+def _tracker_loop():
+    global _current_track_info
+    _init_db()
+    while True:
+        try:
+            time.sleep(5)
+            script = """
+            tell application "System Events"
+                if not (exists (process "Music")) then return "INACTIVE"
+            end tell
+            tell application "Music"
+                if player state is playing then
+                    set t to current track
+                    set pos to player position as integer
+                    set dur to duration of t as integer
+                    return "PLAYING|||" & (name of t) & "|||" & (artist of t) & "|||" & (album of t) & "|||" & (pos as string) & "|||" & (dur as string)
+                else
+                    return "PAUSED"
+                end if
+            end tell
+            """
+            raw = run_applescript(script)
+            if raw == "INACTIVE" or raw == "PAUSED" or raw.startswith("Error:"):
+                continue
+
+            if raw.startswith("PLAYING|||"):
+                parts = raw.split("|||")
+                if len(parts) >= 6:
+                    t_name = parts[1]
+                    a_name = parts[2]
+                    al_name = parts[3]
+                    try:
+                        pos = int(parts[4])
+                        dur = int(parts[5])
+                    except ValueError:
+                        pos = 0
+                        dur = 0
+
+                    track_key = (t_name, a_name)
+                    with _tracker_lock:
+                        if _current_track_info["key"] is None:
+                            _current_track_info = {
+                                "key": track_key,
+                                "track": t_name,
+                                "artist": a_name,
+                                "album": al_name,
+                                "duration": dur,
+                                "seconds_listened": 5,
+                                "last_pos": pos
+                            }
+                        elif _current_track_info["key"] == track_key:
+                            if pos != _current_track_info["last_pos"]:
+                                _current_track_info["seconds_listened"] += 5
+                                _current_track_info["last_pos"] = pos
+                        else:
+                            prev = _current_track_info
+                            seconds_listened = prev["seconds_listened"]
+                            duration = prev["duration"]
+                            threshold = min(30, duration // 2) if duration > 0 else 30
+                            if seconds_listened >= threshold:
+                                _log_play(prev["track"], prev["artist"], prev["album"], duration, seconds_listened, 0)
+                            elif seconds_listened >= 3:
+                                _log_play(prev["track"], prev["artist"], prev["album"], duration, seconds_listened, 1)
+
+                            _current_track_info = {
+                                "key": track_key,
+                                "track": t_name,
+                                "artist": a_name,
+                                "album": al_name,
+                                "duration": dur,
+                                "seconds_listened": 5,
+                                "last_pos": pos
+                            }
+        except Exception:
+            pass
+
+
+_tracker_thread = threading.Thread(target=_tracker_loop, daemon=True)
+_tracker_thread.start()
+
+
 # Instantiate the MCP server.
 mcp = FastMCP("iTunesControlServer")
+
 
 
 @mcp.tool()
@@ -990,12 +1123,290 @@ def itunes_get_artist_albums(artist: str, limit: int = 10) -> str:
         return f"Error querying catalog albums: {str(e)}"
 
 
+@mcp.tool()
+def itunes_get_monthly_replay(year: int = 0, month: int = 0) -> str:
+    """
+    Generate an 'Apple Music Replay' listening report for a specific month and year.
+
+    Args:
+        year: Year (e.g. 2026). Defaults to current year if 0.
+        month: Month (1-12). Defaults to current month if 0.
+
+    Returns:
+        Formatted summary with total listening time, play count, skip rate, top artists, top songs, and top albums.
+    """
+    _init_db()
+    now = datetime.datetime.now()
+    y = year if year > 0 else now.year
+    m = month if month > 0 else now.month
+
+    if not (1 <= m <= 12):
+        return "Error: Month must be between 1 and 12."
+
+    start_str = f"{y:04d}-{m:02d}-01 00:00:00"
+    if m == 12:
+        end_str = f"{y+1:04d}-01-01 00:00:00"
+    else:
+        end_str = f"{y:04d}-{m+1:02d}-01 00:00:00"
+
+    month_name = datetime.date(y, m, 1).strftime("%B %Y")
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    # 1. Totals
+    c.execute("""
+        SELECT COUNT(*), SUM(played_sec), SUM(CASE WHEN skipped = 1 THEN 1 ELSE 0 END)
+        FROM plays
+        WHERE timestamp >= ? AND timestamp < ?
+    """, (start_str, end_str))
+    total_plays, total_sec, total_skips = c.fetchone()
+
+    if not total_plays or total_plays == 0:
+        conn.close()
+        return f"No listening journal data recorded yet for {month_name}."
+
+    total_sec = total_sec or 0
+    total_skips = total_skips or 0
+    hours = total_sec // 3600
+    minutes = (total_sec % 3600) // 60
+    skip_rate = round((total_skips / total_plays) * 100, 1)
+
+    # 2. Top Artists
+    c.execute("""
+        SELECT artist_name, COUNT(*), SUM(played_sec)
+        FROM plays
+        WHERE timestamp >= ? AND timestamp < ? AND skipped = 0
+        GROUP BY artist_name
+        ORDER BY COUNT(*) DESC, SUM(played_sec) DESC
+        LIMIT 5
+    """, (start_str, end_str))
+    top_artists = c.fetchall()
+
+    # 3. Top Songs
+    c.execute("""
+        SELECT track_name, artist_name, COUNT(*)
+        FROM plays
+        WHERE timestamp >= ? AND timestamp < ? AND skipped = 0
+        GROUP BY track_name, artist_name
+        ORDER BY COUNT(*) DESC
+        LIMIT 10
+    """, (start_str, end_str))
+    top_songs = c.fetchall()
+
+    # 4. Top Albums
+    c.execute("""
+        SELECT album_name, artist_name, COUNT(*)
+        FROM plays
+        WHERE timestamp >= ? AND timestamp < ? AND skipped = 0 AND album_name != ''
+        GROUP BY album_name, artist_name
+        ORDER BY COUNT(*) DESC
+        LIMIT 5
+    """, (start_str, end_str))
+    top_albums = c.fetchall()
+
+    conn.close()
+
+    lines = [
+        f"🎧 Apple Music Replay: {month_name}",
+        "=" * 42,
+        f"⏱️ Total Listening Time: {hours}h {minutes}m",
+        f"▶️ Total Plays: {total_plays} (Completed: {total_plays - total_skips}, Skipped: {total_skips} | {skip_rate}% skip rate)",
+        "",
+        "🏆 Top Artists:",
+    ]
+    for idx, (artist, count, a_sec) in enumerate(top_artists, 1):
+        a_m = (a_sec or 0) // 60
+        lines.append(f"{idx}. {artist} — {count} play(s) ({a_m} mins)")
+
+    lines.extend(["", "🎵 Top Songs:"])
+    for idx, (song, artist, count) in enumerate(top_songs, 1):
+        lines.append(f"{idx}. {song} — {artist} ({count} play(s))")
+
+    if top_albums:
+        lines.extend(["", "💿 Top Albums:"])
+        for idx, (album, artist, count) in enumerate(top_albums, 1):
+            lines.append(f"{idx}. {album} — {artist} ({count} play(s))")
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+def itunes_get_listening_history(limit: int = 20, artist: str = "") -> str:
+    """
+    Get a chronological journal log of recent music plays and skips with timestamps.
+
+    Args:
+        limit: Number of recent tracks to return (default 20, max 100).
+        artist: Optional filter to see history for a specific artist.
+    """
+    _init_db()
+    safe_limit = min(max(1, limit), 100)
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    if artist.strip():
+        c.execute("""
+            SELECT track_name, artist_name, album_name, played_sec, skipped, timestamp
+            FROM plays
+            WHERE artist_name LIKE ?
+            ORDER BY id DESC
+            LIMIT ?
+        """, (f"%{artist.strip()}%", safe_limit))
+    else:
+        c.execute("""
+            SELECT track_name, artist_name, album_name, played_sec, skipped, timestamp
+            FROM plays
+            ORDER BY id DESC
+            LIMIT ?
+        """, (safe_limit,))
+
+    rows = c.fetchall()
+    conn.close()
+
+    if not rows:
+        return "No listening history entries recorded yet."
+
+    lines = [f"📜 Listening Journal History (Last {len(rows)} entries):", "=" * 55]
+    for track, art, album, played_sec, skipped, ts in rows:
+        mins = (played_sec or 0) // 60
+        secs = (played_sec or 0) % 60
+        status = "❌ Skipped" if skipped == 1 else "✅ Completed"
+        lines.append(f"• {ts} | {track} — {art} ({mins}m{secs:02d}s) [{status}]")
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+def itunes_get_listening_stats_by_date(start_date: str = "", end_date: str = "") -> str:
+    """
+    Get aggregated listening statistics and top artists/songs for a custom date range.
+
+    Args:
+        start_date: Start date in 'YYYY-MM-DD' format (e.g. '2026-08-01'). Defaults to 7 days ago if empty.
+        end_date: End date in 'YYYY-MM-DD' format (e.g. '2026-08-19'). Defaults to today if empty.
+    """
+    _init_db()
+    now = datetime.datetime.now()
+    if not end_date.strip():
+        end_date_str = (now + datetime.timedelta(days=1)).strftime("%Y-%m-%d 00:00:00")
+        end_label = now.strftime("%Y-%m-%d")
+    else:
+        end_date_str = f"{end_date.strip()} 23:59:59"
+        end_label = end_date.strip()
+
+    if not start_date.strip():
+        start_date_str = (now - datetime.timedelta(days=7)).strftime("%Y-%m-%d 00:00:00")
+        start_label = (now - datetime.timedelta(days=7)).strftime("%Y-%m-%d")
+    else:
+        start_date_str = f"{start_date.strip()} 00:00:00"
+        start_label = start_date.strip()
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT COUNT(*), SUM(played_sec), SUM(CASE WHEN skipped = 1 THEN 1 ELSE 0 END)
+        FROM plays
+        WHERE timestamp >= ? AND timestamp <= ?
+    """, (start_date_str, end_date_str))
+    total_plays, total_sec, total_skips = c.fetchone()
+
+    if not total_plays or total_plays == 0:
+        conn.close()
+        return f"No listening data recorded between {start_label} and {end_label}."
+
+    total_sec = total_sec or 0
+    total_skips = total_skips or 0
+    hours = total_sec // 3600
+    minutes = (total_sec % 3600) // 60
+    skip_rate = round((total_skips / total_plays) * 100, 1)
+
+    c.execute("""
+        SELECT artist_name, COUNT(*)
+        FROM plays
+        WHERE timestamp >= ? AND timestamp <= ? AND skipped = 0
+        GROUP BY artist_name
+        ORDER BY COUNT(*) DESC
+        LIMIT 5
+    """, (start_date_str, end_date_str))
+    top_artists = c.fetchall()
+
+    c.execute("""
+        SELECT track_name, artist_name, COUNT(*)
+        FROM plays
+        WHERE timestamp >= ? AND timestamp <= ? AND skipped = 0
+        GROUP BY track_name, artist_name
+        ORDER BY COUNT(*) DESC
+        LIMIT 5
+    """, (start_date_str, end_date_str))
+    top_songs = c.fetchall()
+
+    conn.close()
+
+    lines = [
+        f"📊 Listening Stats ({start_label} to {end_label})",
+        "=" * 45,
+        f"⏱️ Total Listening Time: {hours}h {minutes}m",
+        f"▶️ Total Plays: {total_plays} (Completed: {total_plays - total_skips}, Skipped: {total_skips} | {skip_rate}% skip rate)",
+        "",
+        "🏆 Top Artists:",
+    ]
+    for idx, (artist, count) in enumerate(top_artists, 1):
+        lines.append(f"{idx}. {artist} ({count} play(s))")
+
+    lines.extend(["", "🎵 Top Songs:"])
+    for idx, (song, artist, count) in enumerate(top_songs, 1):
+        lines.append(f"{idx}. {song} — {artist} ({count} play(s))")
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+def itunes_log_current_play() -> str:
+    """
+    Manually log the currently playing track into the listening journal immediately.
+    """
+    script = """
+    tell application "Music"
+        if player state is playing then
+            set t to current track
+            set pos to player position as integer
+            set dur to duration of t as integer
+            return (name of t) & "|||" & (artist of t) & "|||" & (album of t) & "|||" & (pos as string) & "|||" & (dur as string)
+        else
+            return "NOT_PLAYING"
+        end if
+    end tell
+    """
+    raw = run_applescript(script)
+    if raw == "NOT_PLAYING" or raw.startswith("Error:"):
+        return "Music is not currently playing."
+
+    parts = raw.split("|||")
+    if len(parts) >= 5:
+        t_name = parts[0]
+        a_name = parts[1]
+        al_name = parts[2]
+        try:
+            pos = int(parts[3])
+            dur = int(parts[4])
+        except ValueError:
+            pos = 0
+            dur = 0
+        _log_play(t_name, a_name, al_name, dur, pos, 0)
+        return f"Logged play to journal: '{t_name}' — {a_name} ({pos}s played)"
+
+    return f"Unable to parse track info: {raw}"
+
+
 def main():
     mcp.run()
 
 
 if __name__ == "__main__":
     main()
+
 
 
 
