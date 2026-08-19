@@ -1,38 +1,90 @@
-# MCP-AppleMusic
+# 🎵 MCP-AppleMusic
 
-A FastMCP server for controlling Apple Music on macOS.
+A comprehensive FastMCP server for controlling Apple Music on macOS with AI agents.
 
-## Requirements
+Featuring **66 tools** spanning playback, playlist engineering, listening analytics, Spotify conversion, smart DJ transitions, and audio device control.
 
-- Python 3.13+
-- macOS with Apple Music app installed
-- MCP library ≥1.2.1
+---
 
-## Installation
+## ✨ Key Superpowers
 
-First, ensure you have uv installed:
-```bash
-$ brew install uv
-```
+- 🎧 **Complete Apple Music Control**: Playback, volume, AirPlay per-device levels, EQ presets, repeat/shuffle modes, and MiniPlayer.
+- 📊 **Listening Journal & Monthly Replay**: Local SQLite database + background daemon scrobbler for continuous tracking and Apple Replay reports.
+- 🔄 **Cross-Platform Spotify Importer**: Import public Spotify playlists and albums directly into Apple Music (zero logins/tokens required).
+- 🎛️ **Smart AI DJ Transitions**: Auto-calculates BPMs and trims `start`/`finish` offsets for continuous, seamless crossfading.
+- 📝 **Hybrid Lyrics & Universal Links**: Instant lyrics via LRCLIB + universal `song.link` generator for sharing songs across Spotify/YouTube/Tidal.
+- 📁 **Playlist Management & Export**: Nested folders, deduplication, auto-sorting, and export to JSON, CSV, or Markdown.
 
-Then, with **Claude Desktop**, add the following to `claude_desktop_config.json`:
+---
+
+## 💻 Requirements
+
+- **macOS** with Apple Music app installed
+- **Python 3.13+**
+- **uv** package manager (`brew install uv`)
+
+---
+
+## ⚡ Quick Setup & Configuration
+
+### Option 1: Claude Desktop
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "iTunesControlServer": {
+    "applemusic": {
       "command": "uvx",
-      "args": ["-p", "3.13", "-n", "mcp-applemusic"]
+      "args": ["git+https://github.com/kennethreitz/mcp-applemusic.git"]
     }
   }
 }
 ```
 
-> **Note:** If you encounter an `ImportError` for `mcp.server.fastmcp` (removed in `mcp` SDK ≥ 1.9), install the standalone package: `pip install fastmcp`. The server will automatically fall back to it.
+### Option 2: Cursor / Windsurf / VS Code (Cline & Roo Code)
+Add to your MCP settings:
 
-## Available Commands
+```json
+{
+  "mcpServers": {
+    "applemusic": {
+      "command": "uvx",
+      "args": ["git+https://github.com/kennethreitz/mcp-applemusic.git"]
+    }
+  }
+}
+```
 
-The following **66 tools** are available through the MCP server:
+> **macOS Permission Note**: When running for the first time, macOS will ask permission for your AI client or terminal to control *Music.app*. Click **Allow** (or check *System Settings ➔ Privacy & Security ➔ Automation*).
+
+---
+
+## 💬 Example Natural Language Commands
+
+Once connected, you can talk to your AI agent naturally:
+
+- **Playback & Audio**:
+  - *"Play Location by Dave"*
+  - *"Set volume to 80% and switch EQ to Hip-Hop"*
+  - *"Switch audio output to my AirPods Pro"*
+  - *"Turn on shuffle for my Gym playlist"*
+- **Discovery & Conversion**:
+  - *"Import this Spotify playlist: `https://open.spotify.com/playlist/...`"*
+  - *"Generate a universal share link for what's currently playing"*
+  - *"Show me the UK Top 10 Apple Music chart"*
+  - *"Get the lyrics for this song"*
+- **Analytics & Replay**:
+  - *"Give me my August Replay report"*
+  - *"What is my music listening personality profile?"*
+  - *"Show my listening history for the last 10 songs"*
+- **DJ & Library Engineering**:
+  - *"Configure smart DJ crossfades for my 'Party' playlist"*
+  - *"Find and remove duplicate songs in my 'Favorites' playlist"*
+  - *"Export my 'uk love' playlist to Markdown"*
+
+---
+
+## 🛠️ Complete Suite of 66 Tools
 
 ```python
 # 1. Playback & Track Control
@@ -67,7 +119,7 @@ itunes_set_track_volume_adjustment(adj, song) # Set track volume adjustment (-10
 
 # 3. Deep Tagging & Metadata Editor
 itunes_get_track_metadata(song)            # Inspect genre, composer, track/disc numbers, comments, dates
-itunes_edit_track_metadata(song, genre, composer, comment, year, track_number) # Update metadata tags
+itunes_edit_track_metadata(...)            # Update metadata tags (genre, composer, comment, year)
 itunes_get_artwork_info(song)              # Inspect album artwork format, description & status
 
 # 4. Library, Catalog & Artist Discovery
@@ -77,7 +129,7 @@ itunes_get_artist_top_tracks(artist, limit)# Get top songs for any artist worldw
 itunes_get_artist_albums(artist, limit)    # Get official albums for any artist worldwide
 itunes_play_song(song)                     # Find and play a specific song
 
-# 5. Cross-Platform Converters & Curation (NEW)
+# 5. Cross-Platform Converters & Curation
 itunes_import_from_spotify(url, name)      # Import public Spotify playlist/album directly into Apple Music
 itunes_generate_share_link(song)           # Generate universal share link (song.link) for all platforms
 itunes_get_top_charts(country, limit)      # Fetch official Apple Music Daily Top 100 Charts
@@ -119,43 +171,9 @@ itunes_reveal_track(song)                  # Reveal & highlight track in Music w
 itunes_get_stats()                         # Generate library analytics (tracks, hours, favorites)
 ```
 
-## Usage
+---
 
-Start the server:
-
-```bash
-python mcp_applemusic.py
-```
-
-Example interactions:
-
-```python
-# Search for a song
-results = itunes_search("Funky Friday")
-
-# Play a specific song
-itunes_play_song("Funky Friday")
-
-# Check what's playing
-itunes_current_track()
-
-# Create a playlist and add songs to it
-itunes_create_playlist("My Favourites")
-itunes_add_to_playlist("Funky Friday", "My Favourites")
-itunes_add_to_playlist("Essence", "My Favourites")
-
-# See all your playlists
-itunes_list_playlists()
-
-# See what's in a playlist
-itunes_get_playlist_tracks("My Favourites")
-
-# Control playback
-itunes_set_volume(80)
-itunes_shuffle(True)
-```
-
-## Development
+## 🛠️ Development & Contributing
 
 1. Clone the repository:
 ```bash
@@ -163,26 +181,15 @@ git clone https://github.com/suleyman416/mcp-applemusic.git
 cd mcp-applemusic
 ```
 
-2. Install development dependencies:
+2. Run in development mode:
 ```bash
-pip install -e ".[dev]"
+uv run mcp_applemusic.py
 ```
 
-## Contributing
+3. Open a Pull Request!
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+---
 
-## License
+## 📄 License
+MIT License. See [LICENSE](LICENSE) for details.
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Notes
-
-- This tool only works on macOS systems due to its AppleScript dependency
-- Requires Apple Music (formerly iTunes) to be installed
-- Apple Music subscription and iCloud Music Library tracks are fully supported
-- `itunes_search_catalog` queries the global Apple Music store (100M+ tracks) for metadata & discovery. Playback and playlist modifications (`itunes_add_to_playlist`) apply to tracks saved in your Apple Music Library due to AppleScript macOS boundaries.
