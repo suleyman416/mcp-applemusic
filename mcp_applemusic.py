@@ -1397,7 +1397,571 @@ def itunes_log_current_play() -> str:
         _log_play(t_name, a_name, al_name, dur, pos, 0)
         return f"Logged play to journal: '{t_name}' — {a_name} ({pos}s played)"
 
-    return f"Unable to parse track info: {raw}"
+# --- Audio Technicals & Quality Tools ---
+
+@mcp.tool()
+def itunes_get_track_audio_info(song: str = "") -> str:
+    """
+    Get technical audio quality information (bitrate, sample rate, BPM, cloud status, format, volume adjustment).
+
+    Args:
+        song: Optional track title. If empty, inspects currently playing track.
+    """
+    target = f'(first track of playlist "Library" whose name contains "{song}")' if song.strip() else 'current track'
+    script = f"""
+    tell application "Music"
+        try
+            set t to {target}
+            set bRate to bit rate of t as string
+            set sRate to sample rate of t as string
+            set bpmVal to bpm of t as string
+            set cStatus to cloud status of t as string
+            set vAdj to volume adjustment of t as string
+            set gLess to gapless of t as string
+            set tDur to duration of t as string
+            set tKind to kind of t as string
+            return "Audio Info for: " & name of t & " - " & artist of t & "\\n" & ¬
+                   "• Bit Rate: " & bRate & " kbps\\n" & ¬
+                   "• Sample Rate: " & sRate & " Hz\\n" & ¬
+                   "• BPM (Tempo): " & bpmVal & "\\n" & ¬
+                   "• Cloud Status: " & cStatus & "\\n" & ¬
+                   "• Audio Kind: " & tKind & "\\n" & ¬
+                   "• Volume Adjustment: " & vAdj & "%\\n" & ¬
+                   "• Gapless: " & gLess & "\\n" & ¬
+                   "• Duration: " & tDur & "s"
+        on error e
+            return "Error retrieving audio info: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_set_track_bpm(bpm: int, song: str = "") -> str:
+    """
+    Set Beats Per Minute (BPM) tempo on a track.
+
+    Args:
+        bpm: Beats per minute (e.g. 120, 140).
+        song: Optional track title. If empty, modifies currently playing track.
+    """
+    if bpm < 0 or bpm > 500:
+        return "Error: BPM must be between 0 and 500."
+    target = f'(first track of playlist "Library" whose name contains "{song}")' if song.strip() else 'current track'
+    script = f"""
+    tell application "Music"
+        try
+            set t to {target}
+            set bpm of t to {bpm}
+            return "Set BPM to " & {bpm} & " on: " & name of t & " - " & artist of t
+        on error e
+            return "Error setting BPM: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_set_track_start_finish(start: int = 0, finish: int = 0, song: str = "") -> str:
+    """
+    Set custom playback start and/or finish time offsets (in seconds) for a track.
+
+    Args:
+        start: Start offset in seconds (0 for beginning).
+        finish: Finish offset in seconds (0 for normal track end).
+        song: Optional track title. If empty, modifies currently playing track.
+    """
+    target = f'(first track of playlist "Library" whose name contains "{song}")' if song.strip() else 'current track'
+    set_stmts = []
+    if start >= 0:
+        set_stmts.append(f"set start of t to {start}")
+    if finish > 0:
+        set_stmts.append(f"set finish of t to {finish}")
+    stmts = "\n            ".join(set_stmts)
+    script = f"""
+    tell application "Music"
+        try
+            set t to {target}
+            {stmts}
+            return "Updated start/finish offsets on: " & name of t & " (start: {start}s, finish: {finish}s)"
+        on error e
+            return "Error setting start/finish: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_set_track_volume_adjustment(adjustment: int, song: str = "") -> str:
+    """
+    Set relative volume adjustment (-100% to +100%) for track gain normalization.
+
+    Args:
+        adjustment: Volume adjustment from -100 to 100 percent.
+        song: Optional track title. If empty, modifies currently playing track.
+    """
+    if not -100 <= adjustment <= 100:
+        return "Error: Volume adjustment must be between -100 and 100."
+    target = f'(first track of playlist "Library" whose name contains "{song}")' if song.strip() else 'current track'
+    script = f"""
+    tell application "Music"
+        try
+            set t to {target}
+            set volume adjustment of t to {adjustment}
+            return "Set volume adjustment to " & {adjustment} & "% on: " & name of t & " - " & artist of t
+        on error e
+            return "Error setting volume adjustment: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+# --- Deep Tagging & Metadata Editor Tools ---
+
+@mcp.tool()
+def itunes_get_track_metadata(song: str = "") -> str:
+    """
+    Inspect comprehensive metadata for a track (genre, composer, comment, track/disc numbers, compilation, date added, unplayed).
+
+    Args:
+        song: Optional track title. If empty, inspects currently playing track.
+    """
+    target = f'(first track of playlist "Library" whose name contains "{song}")' if song.strip() else 'current track'
+    script = f"""
+    tell application "Music"
+        try
+            set t to {target}
+            set gName to genre of t as string
+            set cName to composer of t as string
+            set cText to comment of t as string
+            set tNum to track number of t as string
+            set tCount to track count of t as string
+            set dNum to disc number of t as string
+            set dCount to disc count of t as string
+            set compVal to compilation of t as string
+            set dAdded to date added of t as string
+            set unp to unplayed of t as string
+            set pCount to played count of t as string
+            set sCount to skipped count of t as string
+            return "Detailed Metadata for: " & name of t & " - " & artist of t & "\\n" & ¬
+                   "• Album: " & album of t & "\\n" & ¬
+                   "• Genre: " & gName & "\\n" & ¬
+                   "• Composer: " & cName & "\\n" & ¬
+                   "• Track Number: " & tNum & " of " & tCount & "\\n" & ¬
+                   "• Disc Number: " & dNum & " of " & dCount & "\\n" & ¬
+                   "• Compilation: " & compVal & "\\n" & ¬
+                   "• Date Added: " & dAdded & "\\n" & ¬
+                   "• Unplayed: " & unp & "\\n" & ¬
+                   "• Lifetime Plays: " & pCount & " | Lifetime Skips: " & sCount & "\\n" & ¬
+                   "• Comment: " & cText
+        on error e
+            return "Error retrieving metadata: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_edit_track_metadata(song: str = "", genre: str = "", composer: str = "", comment: str = "", year: int = 0, track_number: int = 0) -> str:
+    """
+    Edit and update metadata tags on a track in your library.
+
+    Args:
+        song: Optional track title to edit. If empty, edits currently playing track.
+        genre: New genre tag (optional).
+        composer: New composer/producer credit (optional).
+        comment: Custom comment or note (optional).
+        year: Release year (optional).
+        track_number: Track index number (optional).
+    """
+    target = f'(first track of playlist "Library" whose name contains "{song}")' if song.strip() else 'current track'
+    updates = []
+    if genre.strip():
+        updates.append(f'set genre of t to "{genre.strip()}"')
+    if composer.strip():
+        updates.append(f'set composer of t to "{composer.strip()}"')
+    if comment.strip():
+        updates.append(f'set comment of t to "{comment.strip()}"')
+    if year > 0:
+        updates.append(f'set year of t to {year}')
+    if track_number > 0:
+        updates.append(f'set track number of t to {track_number}')
+
+    if not updates:
+        return "No metadata updates specified."
+
+    stmts = "\n            ".join(updates)
+    script = f"""
+    tell application "Music"
+        try
+            set t to {target}
+            {stmts}
+            return "Successfully updated metadata for: " & name of t & " - " & artist of t
+        on error e
+            return "Error editing metadata: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_favorite_album(favorited: bool = True) -> str:
+    """
+    Favorite/star or unfavorite the album of the currently playing track.
+
+    Args:
+        favorited: True to star/favorite the album, False to unstar.
+    """
+    val = "true" if favorited else "false"
+    script = f"""
+    tell application "Music"
+        if player state is playing then
+            set t to current track
+            try
+                set album favorited of t to {val}
+                set status to if {val} then "Favorited (starred)" else "Unfavorited"
+                return status & " album: " & album of t & " — " & artist of t
+            on error e
+                return "Error favoriting album: " & e
+            end try
+        else
+            return "Music is not currently playing."
+        end if
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_rate_album(stars: int) -> str:
+    """
+    Set a star rating (1–5 stars) for the album of the currently playing track.
+
+    Args:
+        stars: Rating from 1 to 5 stars, or 0 to clear album rating.
+    """
+    if not 0 <= stars <= 5:
+        return "Error: Rating stars must be between 0 and 5."
+    rating_val = stars * 20
+    script = f"""
+    tell application "Music"
+        if player state is playing then
+            set t to current track
+            try
+                set album rating of t to {rating_val}
+                return "Set album rating to " & {stars} & " star(s) for: " & album of t & " — " & artist of t
+            on error e
+                return "Error setting album rating: " & e
+            end try
+        else
+            return "Music is not currently playing."
+        end if
+    end tell
+    """
+    return run_applescript(script)
+
+
+# --- Artwork Management Tool ---
+
+@mcp.tool()
+def itunes_get_artwork_info(song: str = "") -> str:
+    """
+    Get information about attached album artwork for a track.
+
+    Args:
+        song: Optional track title. If empty, inspects currently playing track.
+    """
+    target = f'(first track of playlist "Library" whose name contains "{song}")' if song.strip() else 'current track'
+    script = f"""
+    tell application "Music"
+        try
+            set t to {target}
+            set artCount to count of artworks of t
+            if artCount > 0 then
+                set art to artwork 1 of t
+                set artFmt to format of art as string
+                set artDesc to description of art as string
+                set artDown to downloaded of art as string
+                return "Artwork Info for: " & name of t & " - " & artist of t & "\\n" & ¬
+                       "• Total Artworks: " & (artCount as string) & "\\n" & ¬
+                       "• Format: " & artFmt & "\\n" & ¬
+                       "• Downloaded: " & artDown & "\\n" & ¬
+                       "• Description: " & artDesc
+            else
+                return "No artwork attached to: " & name of t
+            end if
+        on error e
+            return "Error retrieving artwork info: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+# --- Advanced Playback & Stream Controls ---
+
+@mcp.tool()
+def itunes_mute(muted: bool = True) -> str:
+    """
+    Mute or unmute Apple Music audio playback.
+
+    Args:
+        muted: True to mute, False to unmute.
+    """
+    val = "true" if muted else "false"
+    script = f"""
+    tell application "Music"
+        set mute to {val}
+        set status to if {val} then "Muted" else "Unmuted"
+        return "Audio " & status
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_set_shuffle_mode(mode: str = "songs") -> str:
+    """
+    Set shuffle granularity mode.
+
+    Args:
+        mode: 'songs' (shuffle individual tracks), 'albums' (shuffle albums), or 'groupings' (shuffle groupings).
+    """
+    m = mode.lower().strip()
+    if m not in ["songs", "albums", "groupings"]:
+        return "Error: Shuffle mode must be 'songs', 'albums', or 'groupings'."
+    script = f"""
+    tell application "Music"
+        try
+            set shuffle mode to {m}
+            return "Set shuffle mode to: {m}"
+        on error e
+            return "Error setting shuffle mode: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_set_device_volume(device_name: str, volume: int) -> str:
+    """
+    Set individual volume (0-100) for a specific AirPlay output device (e.g. HomePod, AirPods, Mac speakers).
+
+    Args:
+        device_name: The exact name of the AirPlay device.
+        volume: Volume level from 0 to 100.
+    """
+    if not 0 <= volume <= 100:
+        return "Error: Volume must be between 0 and 100."
+    script = f"""
+    tell application "Music"
+        try
+            set d to (first AirPlay device whose name is "{device_name}")
+            set sound volume of d to {volume}
+            return "Set volume of '" & "{device_name}" & "' to " & {volume} & "%"
+        on error e
+            return "AirPlay device not found or error setting volume: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_open_location(url: str) -> str:
+    """
+    Open and stream an audio stream URL or Apple Music link directly.
+
+    Args:
+        url: Stream URL (e.g. 'http://...', 'https://...', or 'music://...').
+    """
+    script = f"""
+    tell application "Music"
+        try
+            open location "{url.strip()}"
+            return "Opened stream location: {url.strip()}"
+        on error e
+            return "Error opening location: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_get_stream_info() -> str:
+    """
+    Get live stream station title and URL when listening to live/internet radio or Apple Music 1.
+    """
+    script = """
+    tell application "Music"
+        if player state is playing then
+            set sTitle to current stream title as string
+            set sURL to current stream URL as string
+            if sTitle is not "missing value" and sTitle is not "" then
+                return "Live Stream: " & sTitle & "\nStream URL: " & sURL
+            else
+                return "Not currently listening to an internet stream/radio station."
+            end if
+        else
+            return "Music is not currently playing."
+        end if
+    end tell
+    """
+    return run_applescript(script)
+
+
+# --- Playlist Folders & Descriptions ---
+
+@mcp.tool()
+def itunes_create_playlist_folder(name: str) -> str:
+    """
+    Create a new playlist folder to organize multiple playlists.
+
+    Args:
+        name: The name of the folder to create.
+    """
+    script = f"""
+    tell application "Music"
+        if not (exists folder playlist "{name}") then
+            make new folder playlist with properties {{name:"{name}"}}
+            return "Created playlist folder: {name}"
+        else
+            return "Playlist folder already exists: {name}"
+        end if
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_move_playlist_to_folder(playlist: str, folder: str) -> str:
+    """
+    Move an existing playlist into a playlist folder.
+
+    Args:
+        playlist: The name of the playlist to move.
+        folder: The name of the destination folder playlist.
+    """
+    script = f"""
+    tell application "Music"
+        if not (exists playlist "{playlist}") then return "Playlist not found: {playlist}"
+        if not (exists folder playlist "{folder}") then return "Folder not found: {folder}"
+        try
+            set p to playlist "{playlist}"
+            set parent of p to folder playlist "{folder}"
+            return "Moved playlist '{playlist}' into folder '{folder}'"
+        on error e
+            return "Error moving playlist to folder: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_set_playlist_description(playlist: str, description: str) -> str:
+    """
+    Set or update the description text on a playlist.
+
+    Args:
+        playlist: The name of the playlist.
+        description: Description text for the playlist.
+    """
+    script = f"""
+    tell application "Music"
+        if not (exists playlist "{playlist}") then return "Playlist not found: {playlist}"
+        try
+            set description of playlist "{playlist}" to "{description.replace('"', '\\"')}"
+            return "Updated description for playlist '{playlist}'"
+        on error e
+            return "Error setting playlist description: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+# --- UI & Window Management Tools ---
+
+@mcp.tool()
+def itunes_get_selected_tracks() -> str:
+    """
+    Get a list of tracks currently selected/highlighted by the user in the Music app window.
+    """
+    script = """
+    tell application "Music"
+        try
+            set sel to selection
+            if sel is not {} then
+                set output to "Selected Tracks (" & (count of sel) & "):\n"
+                repeat with t in sel
+                    set output to output & "• " & name of t & " — " & artist of t & " (" & album of t & ")\n"
+                end repeat
+                return output
+            else
+                return "No tracks currently selected in the Music app window."
+            end if
+        on error e
+            return "Error getting selection: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_set_miniplayer(enabled: bool = True) -> str:
+    """
+    Toggle the compact MiniPlayer window mode in the Music app.
+
+    Args:
+        enabled: True to switch to MiniPlayer, False for standard full window.
+    """
+    val = "true" if enabled else "false"
+    script = f"""
+    tell application "Music"
+        try
+            set visible of miniplayer window 1 to {val}
+            set status to if {val} then "MiniPlayer activated" else "MiniPlayer closed"
+            return status
+        on error e
+            return "Error toggling MiniPlayer: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_reveal_track(song: str = "") -> str:
+    """
+    Reveal and highlight a track in the main Music app window.
+
+    Args:
+        song: Optional track title to reveal. If empty, reveals currently playing track.
+    """
+    target = f'(first track of playlist "Library" whose name contains "{song}")' if song.strip() else 'current track'
+    script = f"""
+    tell application "Music"
+        try
+            set t to {target}
+            reveal t
+            activate
+            return "Revealed '" & name of t & " — " & artist of t & "' in Music app"
+        on error e
+            return "Error revealing track: " & e
+        end try
+    end tell
+    """
+    return run_applescript(script)
 
 
 def main():
@@ -1406,6 +1970,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
