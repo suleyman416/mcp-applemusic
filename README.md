@@ -151,7 +151,7 @@ itunes_shuffle(True)
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/suleyman416/mcp-applemusic.git
+git clone https://github.com/kennethreitz/mcp-applemusic.git
 cd mcp-applemusic
 ```
 
