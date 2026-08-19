@@ -1,3 +1,4 @@
+import sys
 import datetime
 import json
 from pathlib import Path
@@ -13,6 +14,8 @@ from mcp.server.fastmcp import FastMCP
 
 def run_applescript(script: str) -> str:
     """Execute an AppleScript command via osascript and return its output."""
+    if sys.platform != "darwin":
+        return "Error: AppleScript is only supported on macOS."
     result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
     if result.returncode != 0:
         return f"Error: {result.stderr.strip()}"
@@ -66,6 +69,8 @@ _tracker_lock = threading.Lock()
 
 
 def _tracker_loop():
+    if sys.platform != 'darwin':
+        return
     global _current_track_info
     _init_db()
     while True:
