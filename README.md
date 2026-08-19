@@ -1,5 +1,11 @@
 # MCP-AppleMusic
 
+[![Glama Score](https://glama.ai/mcp/servers/suleyman416/mcp-applemusic/badges/score.svg)](https://glama.ai/mcp/servers/suleyman416/mcp-applemusic)
+[![Quality: Tier A](https://img.shields.io/badge/Quality-Tier%20A%20(4.5%2F5)-00d992.svg)](https://glama.ai/mcp/servers/suleyman416/mcp-applemusic/score)
+[![Maintenance: Grade B](https://img.shields.io/badge/Maintenance-Grade%20B-f5a623.svg)](https://glama.ai/mcp/servers/suleyman416/mcp-applemusic/score)
+[![License: MIT](https://img.shields.io/badge/License-MIT%20(Grade%20A)-37a169.svg)](https://opensource.org/licenses/MIT)
+[![Tools](https://img.shields.io/badge/Tools-66%20Available-blue.svg)](#complete-suite-of-66-tools)
+
 A comprehensive FastMCP server for controlling Apple Music on macOS with AI agents.
 
 Featuring **66 tools** spanning playback, playlist engineering, listening analytics, Spotify conversion, smart DJ transitions, and audio device control.
@@ -27,7 +33,14 @@ Featuring **66 tools** spanning playback, playlist engineering, listening analyt
 
 ## Quick Setup & Configuration
 
-### Option 1: Claude Desktop
+### Option 1: Automatic 1-Click Install via Smithery
+To automatically install and configure for Claude Desktop via [Smithery](https://smithery.ai):
+
+```bash
+npx -y @smithery/cli install suleyman416/mcp-applemusic --client claude
+```
+
+### Option 2: Claude Desktop (Manual)
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
@@ -41,7 +54,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-### Option 2: Cursor / Windsurf / VS Code (Cline & Roo Code)
+### Option 3: Cursor / Windsurf / VS Code (Cline & Roo Code)
 Add to your MCP settings:
 
 ```json
@@ -55,7 +68,7 @@ Add to your MCP settings:
 }
 ```
 
-> **macOS Permission Note**: When running for the first time, macOS will ask permission for your AI client or terminal to control *Music.app*. Click **Allow** (or check *System Settings  Privacy & Security  Automation*).
+> **macOS Permission Note**: When running for the first time, macOS will ask permission for your AI client or terminal to control *Music.app*. Click **Allow** (or check *System Settings ➔ Privacy & Security ➔ Automation*).
 
 ---
 
