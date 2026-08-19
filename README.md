@@ -80,7 +80,7 @@ Once connected, you can talk to your AI agent naturally:
 - **DJ & Library Engineering**:
   - *"Configure smart DJ crossfades for my 'Party' playlist"*
   - *"Find and remove duplicate songs in my 'Favorites' playlist"*
-  - *"Export my 'uk love' playlist to Markdown"*
+  - *"Export my 'Chill Vibes' playlist to Markdown"*
 
 ---
 
