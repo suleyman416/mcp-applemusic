@@ -35,7 +35,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "applemusic": {
       "command": "uvx",
-      "args": ["git+https://github.com/kennethreitz/mcp-applemusic.git"]
+      "args": ["git+https://github.com/suleyman416/mcp-applemusic.git"]
     }
   }
 }
@@ -49,7 +49,7 @@ Add to your MCP settings:
   "mcpServers": {
     "applemusic": {
       "command": "uvx",
-      "args": ["git+https://github.com/kennethreitz/mcp-applemusic.git"]
+      "args": ["git+https://github.com/suleyman416/mcp-applemusic.git"]
     }
   }
 }
