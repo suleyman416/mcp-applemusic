@@ -1208,23 +1208,23 @@ def itunes_get_monthly_replay(year: int = 0, month: int = 0) -> str:
     conn.close()
 
     lines = [
-        f"🎧 Apple Music Replay: {month_name}",
+        f" Apple Music Replay: {month_name}",
         "=" * 42,
-        f"⏱️ Total Listening Time: {hours}h {minutes}m",
-        f"▶️ Total Plays: {total_plays} (Completed: {total_plays - total_skips}, Skipped: {total_skips} | {skip_rate}% skip rate)",
+        f"⏱ Total Listening Time: {hours}h {minutes}m",
+        f" Total Plays: {total_plays} (Completed: {total_plays - total_skips}, Skipped: {total_skips} | {skip_rate}% skip rate)",
         "",
-        "🏆 Top Artists:",
+        " Top Artists:",
     ]
     for idx, (artist, count, a_sec) in enumerate(top_artists, 1):
         a_m = (a_sec or 0) // 60
         lines.append(f"{idx}. {artist} — {count} play(s) ({a_m} mins)")
 
-    lines.extend(["", "🎵 Top Songs:"])
+    lines.extend(["", " Top Songs:"])
     for idx, (song, artist, count) in enumerate(top_songs, 1):
         lines.append(f"{idx}. {song} — {artist} ({count} play(s))")
 
     if top_albums:
-        lines.extend(["", "💿 Top Albums:"])
+        lines.extend(["", " Top Albums:"])
         for idx, (album, artist, count) in enumerate(top_albums, 1):
             lines.append(f"{idx}. {album} — {artist} ({count} play(s))")
 
@@ -1267,11 +1267,11 @@ def itunes_get_listening_history(limit: int = 20, artist: str = "") -> str:
     if not rows:
         return "No listening history entries recorded yet."
 
-    lines = [f"📜 Listening Journal History (Last {len(rows)} entries):", "=" * 55]
+    lines = [f" Listening Journal History (Last {len(rows)} entries):", "=" * 55]
     for track, art, album, played_sec, skipped, ts in rows:
         mins = (played_sec or 0) // 60
         secs = (played_sec or 0) % 60
-        status = "❌ Skipped" if skipped == 1 else "✅ Completed"
+        status = " Skipped" if skipped == 1 else " Completed"
         lines.append(f"• {ts} | {track} — {art} ({mins}m{secs:02d}s) [{status}]")
 
     return "\n".join(lines)
@@ -1345,17 +1345,17 @@ def itunes_get_listening_stats_by_date(start_date: str = "", end_date: str = "")
     conn.close()
 
     lines = [
-        f"📊 Listening Stats ({start_label} to {end_label})",
+        f" Listening Stats ({start_label} to {end_label})",
         "=" * 45,
-        f"⏱️ Total Listening Time: {hours}h {minutes}m",
-        f"▶️ Total Plays: {total_plays} (Completed: {total_plays - total_skips}, Skipped: {total_skips} | {skip_rate}% skip rate)",
+        f"⏱ Total Listening Time: {hours}h {minutes}m",
+        f" Total Plays: {total_plays} (Completed: {total_plays - total_skips}, Skipped: {total_skips} | {skip_rate}% skip rate)",
         "",
-        "🏆 Top Artists:",
+        " Top Artists:",
     ]
     for idx, (artist, count) in enumerate(top_artists, 1):
         lines.append(f"{idx}. {artist} ({count} play(s))")
 
-    lines.extend(["", "🎵 Top Songs:"])
+    lines.extend(["", " Top Songs:"])
     for idx, (song, artist, count) in enumerate(top_songs, 1):
         lines.append(f"{idx}. {song} — {artist} ({count} play(s))")
 
@@ -2116,7 +2116,7 @@ def itunes_get_top_charts(country: str = "gb", limit: int = 25) -> str:
             title = feed.get("title", f"Apple Music Top {safe_limit} ({country.upper()})")
             results = feed.get("results", [])
             if results:
-                lines = [f"📈 {title}:", "=" * 45]
+                lines = [f" {title}:", "=" * 45]
                 for idx, r in enumerate(results, 1):
                     name = r.get("name", "Unknown")
                     artist = r.get("artistName", "Unknown")
@@ -2133,7 +2133,7 @@ def itunes_get_top_charts(country: str = "gb", limit: int = 25) -> str:
             data = json.loads(resp.read().decode("utf-8"))
             results = data.get("results", [])
             if results:
-                lines = [f"📈 Apple Music Top Hits ({country.upper()}):", "=" * 45]
+                lines = [f" Apple Music Top Hits ({country.upper()}):", "=" * 45]
                 for idx, r in enumerate(results, 1):
                     lines.append(f"{idx}. {r.get('trackName')} — {r.get('artistName')}")
                 return "\n".join(lines)
@@ -2166,7 +2166,7 @@ def itunes_get_new_releases(country: str = "gb", limit: int = 25) -> str:
             if not results:
                 return f"No release results returned for country code: '{country}'"
 
-            lines = [f"💿 {title}:", "=" * 45]
+            lines = [f" {title}:", "=" * 45]
             for idx, r in enumerate(results, 1):
                 name = r.get("name", "Unknown Album")
                 artist = r.get("artistName", "Unknown Artist")
@@ -2233,10 +2233,10 @@ def itunes_get_listening_personality() -> str:
     c.execute("""
         SELECT 
             CASE 
-                WHEN CAST(strftime('%H', timestamp) AS INT) BETWEEN 5 AND 11 THEN 'Morning 🌅 (5am-12pm)'
-                WHEN CAST(strftime('%H', timestamp) AS INT) BETWEEN 12 AND 16 THEN 'Afternoon ☀️ (12pm-5pm)'
-                WHEN CAST(strftime('%H', timestamp) AS INT) BETWEEN 17 AND 21 THEN 'Evening 🌆 (5pm-10pm)'
-                ELSE 'Night 🌙 (10pm-5am)'
+                WHEN CAST(strftime('%H', timestamp) AS INT) BETWEEN 5 AND 11 THEN 'Morning  (5am-12pm)'
+                WHEN CAST(strftime('%H', timestamp) AS INT) BETWEEN 12 AND 16 THEN 'Afternoon  (12pm-5pm)'
+                WHEN CAST(strftime('%H', timestamp) AS INT) BETWEEN 17 AND 21 THEN 'Evening  (5pm-10pm)'
+                ELSE 'Night  (10pm-5am)'
             END as time_period,
             COUNT(*) as count
         FROM plays
@@ -2258,13 +2258,13 @@ def itunes_get_listening_personality() -> str:
 
     top_a_str = ", ".join([f"{a[0]} ({a[1]} play(s))" for a in top_artists])
 
-    return f"""🧬 Your Music Listening Personality Profile
+    return f""" Your Music Listening Personality Profile
 ================================================
-🎭 Archetype: {archetype}
+ Archetype: {archetype}
 ⏰ Peak Listening Vibe: {peak_time}
-⏭️ Skip Tolerance: {skip_rate:.1f}% skip rate ({skips} skips across {total_plays} logged plays)
-⭐ Signature Core Artists: {top_a_str}
-⏱️ Total Journaled Playtime: {total_sec // 60} minutes"""
+⏭ Skip Tolerance: {skip_rate:.1f}% skip rate ({skips} skips across {total_plays} logged plays)
+ Signature Core Artists: {top_a_str}
+⏱ Total Journaled Playtime: {total_sec // 60} minutes"""
 
 
 def main():
