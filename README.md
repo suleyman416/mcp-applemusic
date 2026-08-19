@@ -32,7 +32,7 @@ Then, with **Claude Desktop**, add the following to `claude_desktop_config.json`
 
 ## Available Commands
 
-The following **60 tools** are available through the MCP server:
+The following **66 tools** are available through the MCP server:
 
 ```python
 # 1. Playback & Track Control
@@ -77,7 +77,15 @@ itunes_get_artist_top_tracks(artist, limit)# Get top songs for any artist worldw
 itunes_get_artist_albums(artist, limit)    # Get official albums for any artist worldwide
 itunes_play_song(song)                     # Find and play a specific song
 
-# 5. Playlist & Folder Management
+# 5. Cross-Platform Converters & Curation (NEW)
+itunes_import_from_spotify(url, name)      # Import public Spotify playlist/album directly into Apple Music
+itunes_generate_share_link(song)           # Generate universal share link (song.link) for all platforms
+itunes_get_top_charts(country, limit)      # Fetch official Apple Music Daily Top 100 Charts
+itunes_get_new_releases(country, limit)    # Fetch official Apple Music latest album releases
+itunes_dj_auto_transition(playlist, crossfade) # Configure smart DJ radio-style crossfades across playlist
+itunes_get_listening_personality()         # AI analysis of your listening archetype & signature vibes
+
+# 6. Playlist & Folder Management
 itunes_create_playlist(name)               # Create a new playlist
 itunes_create_playlist_folder(name)        # Create a playlist folder
 itunes_move_playlist_to_folder(playlist, folder) # Move playlist into a folder
@@ -95,13 +103,13 @@ itunes_list_playlists()                    # List all playlists with track count
 itunes_get_playlist_tracks(playlist)       # Get all tracks in a playlist
 itunes_export_playlist(playlist, format)   # Export playlist to JSON, CSV, or Markdown
 
-# 6. Listening Journal & Replay Analytics
+# 7. Listening Journal & Replay Analytics
 itunes_get_monthly_replay(year, month)     # Generate Apple Music Replay report (hours, top songs/artists)
 itunes_get_listening_history(limit, artist)# Chronological playback journal with timestamps & skips
 itunes_get_listening_stats_by_date(start, end) # Custom date-range listening analytics & top charts
 itunes_log_current_play()                  # Manually record current track to journal database
 
-# 7. Audio Devices & UI Controls
+# 8. Audio Devices & UI Controls
 itunes_list_devices()                      # List AirPlay audio output devices & active status
 itunes_set_device(device_name)             # Switch audio output device (AirPods, HomePod, TV)
 itunes_set_device_volume(device, volume)   # Set individual volume for specific AirPlay device

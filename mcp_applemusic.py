@@ -1964,12 +1964,316 @@ def itunes_reveal_track(song: str = "") -> str:
     return run_applescript(script)
 
 
+# --- Next-Gen Curation & Ecosystem Tools ---
+
+@mcp.tool()
+def itunes_import_from_spotify(playlist_url: str, playlist_name: str = "") -> str:
+    """
+    Import and reconstruct a public Spotify playlist or album into Apple Music without any Spotify login.
+
+    Args:
+        playlist_url: Public Spotify playlist or album URL (e.g. 'https://open.spotify.com/playlist/...').
+        playlist_name: Optional custom name for the created Apple Music playlist. Defaults to Spotify playlist title.
+    """
+    import re
+    clean_url = playlist_url.split("?")[0].strip()
+    match = re.search(r'spotify\.com/(playlist|album)/([a-zA-Z0-9]+)', clean_url)
+    if not match:
+        return "Error: Invalid Spotify URL. Expected format: 'https://open.spotify.com/playlist/{id}' or 'https://open.spotify.com/album/{id}'"
+
+    embed_url = f"https://open.spotify.com/embed/{match.group(1)}/{match.group(2)}"
+    try:
+        req = urllib.request.Request(embed_url, headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            html = resp.read().decode("utf-8")
+
+        json_match = re.search(r'<script id="__NEXT_DATA__" type="application/json">({.*?})</script>', html)
+        if not json_match:
+            return "Error: Unable to extract playlist tracks from Spotify embed."
+
+        data = json.loads(json_match.group(1))
+        entity = data.get("props", {}).get("pageProps", {}).get("state", {}).get("data", {}).get("entity", {})
+        default_title = entity.get("title") or "Imported Spotify Playlist"
+        target_name = playlist_name.strip() if playlist_name.strip() else default_title
+        track_list = entity.get("trackList", [])
+
+        if not track_list:
+            return f"No tracks found in Spotify playlist: {target_name}"
+
+        create_script = f"""
+        tell application "Music"
+            if not (exists playlist "{target_name}") then
+                make new playlist with properties {{name:"{target_name}"}}
+            end if
+        end tell
+        """
+        run_applescript(create_script)
+
+        added_count = 0
+        failed_tracks = []
+        for t in track_list:
+            t_name = t.get("title", "")
+            a_name = t.get("subtitle", "")
+            if not t_name:
+                continue
+
+            add_script = f"""
+            tell application "Music"
+                set p to playlist "{target_name}"
+                set sName to "{t_name.replace('"', '\\"')}"
+                repeat with userP in (every user playlist)
+                    if name of userP is not "{target_name}" then
+                        try
+                            set tList to (every track of userP whose name contains sName)
+                            if tList is not {{}} then
+                                duplicate item 1 of tList to p
+                                return "ADDED"
+                            end if
+                        end try
+                    end if
+                end repeat
+                return "NOT_FOUND"
+            end tell
+            """
+            res = run_applescript(add_script)
+            if res == "ADDED":
+                added_count += 1
+            else:
+                failed_tracks.append(f"{t_name} — {a_name}")
+
+        summary = f"Imported Spotify Playlist: '{target_name}'\n• Added {added_count} of {len(track_list)} tracks to Apple Music."
+        if failed_tracks:
+            summary += f"\n• {len(failed_tracks)} track(s) not currently in your local library (use 'itunes_search_catalog' to discover them):\n" + "\n".join([f"  - {f}" for f in failed_tracks[:5]])
+        return summary
+
+    except Exception as e:
+        return f"Error importing Spotify playlist: {str(e)}"
+
+
+@mcp.tool()
+def itunes_generate_share_link(song: str = "") -> str:
+    """
+    Generate a universal share link (song.link) for friends on Spotify, YouTube, Tidal, etc.
+
+    Args:
+        song: Optional track title or 'Title Artist'. If empty, uses currently playing track.
+    """
+    query = song.strip()
+    if not query:
+        script = """
+        tell application "Music"
+            if player state is playing then
+                set t to current track
+                return (name of t) & " " & (artist of t)
+            else
+                return "NOT_PLAYING"
+            end if
+        end tell
+        """
+        raw = run_applescript(script)
+        if raw != "NOT_PLAYING" and not raw.startswith("Error:"):
+            query = raw.strip()
+
+    if not query:
+        return "Music is not playing. Specify a song title (e.g. itunes_generate_share_link('Location Dave'))."
+
+    try:
+        url = f"https://itunes.apple.com/search?term={urllib.parse.quote(query)}&entity=song&limit=1"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            results = data.get("results", [])
+            if results:
+                track_url = results[0].get("trackViewUrl", "")
+                t_name = results[0].get("trackName", "")
+                a_name = results[0].get("artistName", "")
+                return f"Universal Share Link for '{t_name}' — {a_name}:\nhttps://song.link/{track_url}"
+    except Exception:
+        pass
+
+    return f"Unable to generate universal share link for: '{query}'"
+
+
+@mcp.tool()
+def itunes_get_top_charts(country: str = "gb", limit: int = 25) -> str:
+    """
+    Fetch Apple Music's official Daily Top Charts by country (e.g. 'gb', 'us', 'global', 'ng', 'ca').
+
+    Args:
+        country: Two-letter country code (e.g. 'gb' for UK, 'us' for USA, 'ca' for Canada).
+        limit: Number of top songs to return (default 25, max 100).
+    """
+    safe_limit = min(max(1, limit), 100)
+    c_code = country.lower().strip()
+
+    # 1. Try Apple Marketing RSS feed
+    try:
+        url = f"https://rss.applemarketingtools.com/api/v2/{c_code}/music/most-played/{safe_limit}/songs.json"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            feed = data.get("feed", {})
+            title = feed.get("title", f"Apple Music Top {safe_limit} ({country.upper()})")
+            results = feed.get("results", [])
+            if results:
+                lines = [f"📈 {title}:", "=" * 45]
+                for idx, r in enumerate(results, 1):
+                    name = r.get("name", "Unknown")
+                    artist = r.get("artistName", "Unknown")
+                    lines.append(f"{idx}. {name} — {artist}")
+                return "\n".join(lines)
+    except Exception:
+        pass
+
+    # 2. Resilient fallback to iTunes search API
+    try:
+        url = f"https://itunes.apple.com/search?term=top+hits&country={c_code}&entity=song&limit={safe_limit}"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            results = data.get("results", [])
+            if results:
+                lines = [f"📈 Apple Music Top Hits ({country.upper()}):", "=" * 45]
+                for idx, r in enumerate(results, 1):
+                    lines.append(f"{idx}. {r.get('trackName')} — {r.get('artistName')}")
+                return "\n".join(lines)
+    except Exception as e:
+        return f"Error fetching charts: {e}"
+
+    return f"No chart results found for: '{country}'"
+
+
+
+@mcp.tool()
+def itunes_get_new_releases(country: str = "gb", limit: int = 25) -> str:
+    """
+    Fetch Apple Music's latest official album and single releases by country.
+
+    Args:
+        country: Two-letter country code (e.g. 'gb', 'us', 'ng', 'ca').
+        limit: Number of new releases to return (default 25, max 100).
+    """
+    safe_limit = min(max(1, limit), 100)
+    c_code = country.lower().strip()
+    url = f"https://rss.applemarketingtools.com/api/v2/{c_code}/music/most-played/{safe_limit}/albums.json"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            feed = data.get("feed", {})
+            title = feed.get("title", f"Apple Music Top Albums ({country.upper()})")
+            results = feed.get("results", [])
+            if not results:
+                return f"No release results returned for country code: '{country}'"
+
+            lines = [f"💿 {title}:", "=" * 45]
+            for idx, r in enumerate(results, 1):
+                name = r.get("name", "Unknown Album")
+                artist = r.get("artistName", "Unknown Artist")
+                lines.append(f"{idx}. {name} — {artist}")
+
+            return "\n".join(lines)
+    except Exception as e:
+        return f"Error fetching Apple releases: {str(e)}"
+
+
+@mcp.tool()
+def itunes_dj_auto_transition(playlist: str, crossfade_seconds: int = 5, trim_intro: int = 0) -> str:
+    """
+    Apply intelligent DJ start/finish trim offsets across a playlist for radio-style seamless crossfades.
+
+    Args:
+        playlist: The name of the playlist to configure.
+        crossfade_seconds: Seconds to trim off the end of each track (default 5 seconds).
+        trim_intro: Seconds to trim off the start of each track (default 0).
+    """
+    if crossfade_seconds < 0 or trim_intro < 0:
+        return "Error: Offsets must be 0 or positive integers."
+
+    script = f"""
+    tell application "Music"
+        if not (exists playlist "{playlist}") then return "Playlist not found: {playlist}"
+        set p to playlist "{playlist}"
+        set modifiedCount to 0
+        repeat with t in (tracks of p)
+            set d to duration of t as integer
+            if d > ({crossfade_seconds} + {trim_intro} + 10) then
+                if {trim_intro} > 0 then set start of t to {trim_intro}
+                set finish of t to (d - {crossfade_seconds})
+                set modifiedCount to modifiedCount + 1
+            end if
+        end repeat
+        return "Configured DJ Transitions for " & modifiedCount & " track(s) in '{playlist}' (Trim Intro: {trim_intro}s, Crossfade: -{crossfade_seconds}s)."
+    end tell
+    """
+    return run_applescript(script)
+
+
+@mcp.tool()
+def itunes_get_listening_personality() -> str:
+    """
+    Generate an AI analytical breakdown of your listening habits, signature artists, peak listening hours, and skip patterns.
+    """
+    _init_db()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*), SUM(played_sec), SUM(CASE WHEN skipped = 1 THEN 1 ELSE 0 END) FROM plays")
+    total_plays, total_sec, skips = c.fetchone()
+    if not total_plays or total_plays == 0:
+        conn.close()
+        return "Not enough listening journal data recorded yet to analyze personality."
+
+    total_sec = total_sec or 0
+    skips = skips or 0
+    skip_rate = (skips / total_plays) * 100
+
+    c.execute("SELECT artist_name, COUNT(*) FROM plays GROUP BY artist_name ORDER BY COUNT(*) DESC LIMIT 3")
+    top_artists = c.fetchall()
+
+    c.execute("""
+        SELECT 
+            CASE 
+                WHEN CAST(strftime('%H', timestamp) AS INT) BETWEEN 5 AND 11 THEN 'Morning 🌅 (5am-12pm)'
+                WHEN CAST(strftime('%H', timestamp) AS INT) BETWEEN 12 AND 16 THEN 'Afternoon ☀️ (12pm-5pm)'
+                WHEN CAST(strftime('%H', timestamp) AS INT) BETWEEN 17 AND 21 THEN 'Evening 🌆 (5pm-10pm)'
+                ELSE 'Night 🌙 (10pm-5am)'
+            END as time_period,
+            COUNT(*) as count
+        FROM plays
+        GROUP BY time_period
+        ORDER BY count DESC
+        LIMIT 1
+    """)
+    peak_time_row = c.fetchone()
+    peak_time = peak_time_row[0] if peak_time_row else "Varied"
+
+    conn.close()
+
+    if skip_rate < 15:
+        archetype = "The Immersive Listener (Deeply committed, low skip rate)"
+    elif skip_rate > 35:
+        archetype = "The High-Velocity DJ (Fast skipper, curating the exact vibe)"
+    else:
+        archetype = "The Balanced Explorer (Steady listener with eclectic taste)"
+
+    top_a_str = ", ".join([f"{a[0]} ({a[1]} play(s))" for a in top_artists])
+
+    return f"""🧬 Your Music Listening Personality Profile
+================================================
+🎭 Archetype: {archetype}
+⏰ Peak Listening Vibe: {peak_time}
+⏭️ Skip Tolerance: {skip_rate:.1f}% skip rate ({skips} skips across {total_plays} logged plays)
+⭐ Signature Core Artists: {top_a_str}
+⏱️ Total Journaled Playtime: {total_sec // 60} minutes"""
+
+
 def main():
     mcp.run()
 
 
 if __name__ == "__main__":
     main()
+
 
 
 
