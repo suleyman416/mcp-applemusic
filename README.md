@@ -1,4 +1,4 @@
-# 🎵 MCP-AppleMusic
+# MCP-AppleMusic
 
 A comprehensive FastMCP server for controlling Apple Music on macOS with AI agents.
 
@@ -6,18 +6,18 @@ Featuring **66 tools** spanning playback, playlist engineering, listening analyt
 
 ---
 
-## ✨ Key Superpowers
+## Key Superpowers
 
-- 🎧 **Complete Apple Music Control**: Playback, volume, AirPlay per-device levels, EQ presets, repeat/shuffle modes, and MiniPlayer.
-- 📊 **Listening Journal & Monthly Replay**: Local SQLite database + background daemon scrobbler for continuous tracking and Apple Replay reports.
-- 🔄 **Cross-Platform Spotify Importer**: Import public Spotify playlists and albums directly into Apple Music (zero logins/tokens required).
-- 🎛️ **Smart AI DJ Transitions**: Auto-calculates BPMs and trims `start`/`finish` offsets for continuous, seamless crossfading.
-- 📝 **Hybrid Lyrics & Universal Links**: Instant lyrics via LRCLIB + universal `song.link` generator for sharing songs across Spotify/YouTube/Tidal.
-- 📁 **Playlist Management & Export**: Nested folders, deduplication, auto-sorting, and export to JSON, CSV, or Markdown.
+- **Complete Apple Music Control**: Playback, volume, AirPlay per-device levels, EQ presets, repeat/shuffle modes, and MiniPlayer.
+- **Listening Journal & Monthly Replay**: Local SQLite database + background daemon scrobbler for continuous tracking and Apple Replay reports.
+- **Cross-Platform Spotify Importer**: Import public Spotify playlists and albums directly into Apple Music (zero logins/tokens required).
+- **Smart AI DJ Transitions**: Auto-calculates BPMs and trims `start`/`finish` offsets for continuous, seamless crossfading.
+- **Hybrid Lyrics & Universal Links**: Instant lyrics via LRCLIB + universal `song.link` generator for sharing songs across Spotify/YouTube/Tidal.
+- **Playlist Management & Export**: Nested folders, deduplication, auto-sorting, and export to JSON, CSV, or Markdown.
 
 ---
 
-## 💻 Requirements
+## Requirements
 
 - **macOS** with Apple Music app installed
 - **Python 3.13+**
@@ -25,7 +25,7 @@ Featuring **66 tools** spanning playback, playlist engineering, listening analyt
 
 ---
 
-## ⚡ Quick Setup & Configuration
+## Quick Setup & Configuration
 
 ### Option 1: Claude Desktop
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
@@ -55,11 +55,11 @@ Add to your MCP settings:
 }
 ```
 
-> **macOS Permission Note**: When running for the first time, macOS will ask permission for your AI client or terminal to control *Music.app*. Click **Allow** (or check *System Settings ➔ Privacy & Security ➔ Automation*).
+> **macOS Permission Note**: When running for the first time, macOS will ask permission for your AI client or terminal to control *Music.app*. Click **Allow** (or check *System Settings  Privacy & Security  Automation*).
 
 ---
 
-## 💬 Example Natural Language Commands
+## Example Natural Language Commands
 
 Once connected, you can talk to your AI agent naturally:
 
@@ -84,7 +84,7 @@ Once connected, you can talk to your AI agent naturally:
 
 ---
 
-## 🛠️ Complete Suite of 66 Tools
+## Complete Suite of 66 Tools
 
 ```python
 # 1. Playback & Track Control
@@ -173,7 +173,7 @@ itunes_get_stats()                         # Generate library analytics (tracks,
 
 ---
 
-## 🛠️ Development & Contributing
+## Development & Contributing
 
 1. Clone the repository:
 ```bash
@@ -190,6 +190,6 @@ uv run mcp_applemusic.py
 
 ---
 
-## 📄 License
+## License
 MIT License. See [LICENSE](LICENSE) for details.
 
