@@ -1,0 +1,6 @@
+{
+  "$schema": "https://glama.ai/mcp/schema.json",
+  "name": "mcp-applemusic",
+  "description": "A 66-tool FastMCP server for controlling Apple Music on macOS.",
+  "runtime": "python"
+}
