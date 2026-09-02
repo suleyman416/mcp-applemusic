@@ -1,0 +1,6 @@
+startCommand:
+  type: stdio
+  config:
+    command: "uvx"
+    args:
+      - "git+https://github.com/suleyman416/mcp-applemusic.git"
