@@ -14,6 +14,32 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
 
+class RateLimiter:
+    """
+    Thread-safe in-memory rate limiter to prevent aggressive client loops
+    from exceeding public web endpoint rate limits (LRCLIB, iTunes, Spotify).
+    """
+    def __init__(self, max_calls: int = 5, period_seconds: float = 1.0):
+        self.max_calls = max_calls
+        self.period = period_seconds
+        self.timestamps = []
+        self._lock = threading.Lock()
+
+    def acquire(self):
+        with self._lock:
+            now = time.time()
+            self.timestamps = [t for t in self.timestamps if now - t < self.period]
+            if len(self.timestamps) >= self.max_calls:
+                sleep_time = self.period - (now - self.timestamps[0])
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
+                self.timestamps = [t for t in self.timestamps if time.time() - t < self.period]
+            self.timestamps.append(time.time())
+
+
+_network_rate_limiter = RateLimiter(max_calls=5, period_seconds=1.0)
+
+
 def run_applescript(script: str) -> str:
     """Execute an AppleScript command via osascript and return its output."""
     if sys.platform != "darwin":
@@ -246,6 +272,7 @@ def itunes_search_catalog(query: str, limit: int = 5) -> str:
     url = f"https://itunes.apple.com/search?term={encoded_query}&media=music&entity=song&limit={safe_limit}"
 
     try:
+        _network_rate_limiter.acquire()
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=10) as response:
             data = json.loads(response.read().decode("utf-8"))
@@ -514,6 +541,7 @@ def itunes_get_lyrics(song: str = "") -> str:
 
     q = f"{title} {artist}".strip()
     try:
+        _network_rate_limiter.acquire()
         url = f"https://lrclib.net/api/search?q={urllib.parse.quote(q)}"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=5) as resp:
@@ -1205,6 +1233,7 @@ def itunes_get_artist_top_tracks(artist: str, limit: int = 10) -> str:
     url = f"https://itunes.apple.com/search?term={encoded_artist}&media=music&entity=song&limit={safe_limit}"
 
     try:
+        _network_rate_limiter.acquire()
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=10) as response:
             data = json.loads(response.read().decode("utf-8"))
@@ -1238,6 +1267,7 @@ def itunes_get_artist_albums(artist: str, limit: int = 10) -> str:
     url = f"https://itunes.apple.com/search?term={encoded_artist}&media=music&entity=album&limit={safe_limit}"
 
     try:
+        _network_rate_limiter.acquire()
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=10) as response:
             data = json.loads(response.read().decode("utf-8"))
@@ -2226,6 +2256,7 @@ def itunes_import_from_spotify(playlist_url: str, playlist_name: str = "") -> st
 
     embed_url = f"https://open.spotify.com/embed/{match.group(1)}/{match.group(2)}"
     try:
+        _network_rate_limiter.acquire()
         req = urllib.request.Request(embed_url, headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"})
         with urllib.request.urlopen(req, timeout=10) as resp:
             html = resp.read().decode("utf-8")
@@ -2321,6 +2352,7 @@ def itunes_generate_share_link(song: str = "") -> str:
         return "Music is not playing. Specify a song title (e.g. itunes_generate_share_link('Location Dave'))."
 
     try:
+        _network_rate_limiter.acquire()
         url = f"https://itunes.apple.com/search?term={urllib.parse.quote(query)}&entity=song&limit=1"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=5) as resp:
@@ -2351,6 +2383,7 @@ def itunes_get_top_charts(country: str = "gb", limit: int = 25) -> str:
 
     # 1. Try Apple Marketing RSS feed
     try:
+        _network_rate_limiter.acquire()
         url = f"https://rss.applemarketingtools.com/api/v2/{c_code}/music/most-played/{safe_limit}/songs.json"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=5) as resp:
@@ -2370,6 +2403,7 @@ def itunes_get_top_charts(country: str = "gb", limit: int = 25) -> str:
 
     # 2. Resilient fallback to iTunes search API
     try:
+        _network_rate_limiter.acquire()
         url = f"https://itunes.apple.com/search?term=top+hits&country={c_code}&entity=song&limit={safe_limit}"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=5) as resp:
@@ -2400,6 +2434,7 @@ def itunes_get_new_releases(country: str = "gb", limit: int = 25) -> str:
     c_code = country.lower().strip()
     url = f"https://rss.applemarketingtools.com/api/v2/{c_code}/music/most-played/{safe_limit}/albums.json"
     try:
+        _network_rate_limiter.acquire()
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode("utf-8"))

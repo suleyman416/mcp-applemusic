@@ -139,5 +139,12 @@ class TestAppleMusicMCP(unittest.TestCase):
                 mcp_am.DB_PATH = orig_db
 
 
+    def test_rate_limiter_safety_guard(self):
+        limiter = mcp_am.RateLimiter(max_calls=3, period_seconds=0.1)
+        for _ in range(3):
+            limiter.acquire()
+        self.assertEqual(len(limiter.timestamps), 3)
+
+
 if __name__ == "__main__":
     unittest.main()
