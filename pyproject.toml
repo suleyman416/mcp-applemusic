@@ -39,7 +39,9 @@ dependencies = ["mcp>=1.2.1,<2.0.0"]
 
 [project.urls]
 Homepage = "https://github.com/suleyman416/mcp-applemusic"
+Documentation = "https://github.com/suleyman416/mcp-applemusic#readme"
 Repository = "https://github.com/suleyman416/mcp-applemusic"
+"Privacy Policy" = "https://github.com/suleyman416/mcp-applemusic/blob/main/PRIVACY.md"
 "Glama Registry" = "https://glama.ai/mcp/servers/suleyman416/mcp-applemusic"
 "Smithery Registry" = "https://smithery.ai/server/suleyman416/mcp-applemusic"
 Issues = "https://github.com/suleyman416/mcp-applemusic/issues"

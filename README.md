@@ -203,6 +203,10 @@ uv run mcp_applemusic.py
 
 3. Open a Pull Request!
 
+## Privacy & Security
+
+`mcp-applemusic` runs 100% locally on your macOS device via standard I/O (`stdio`). All playback commands, library modifications, and listening journal history are kept entirely on your local machine. No credentials, tokens, or personal identifiers are stored or transmitted. See [PRIVACY.md](PRIVACY.md) for our full privacy policy.
+
 ---
 
 ## License
