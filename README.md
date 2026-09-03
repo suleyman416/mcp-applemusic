@@ -1,15 +1,16 @@
 # MCP-AppleMusic
 
 [![Glama Score](https://glama.ai/mcp/servers/suleyman416/mcp-applemusic/badges/score.svg)](https://glama.ai/mcp/servers/suleyman416/mcp-applemusic)
+[![M8ven Score](https://m8ven.ai/badge/mcp/suleyman416-mcp-applemusic-flnqtd)](https://m8ven.ai/mcp/suleyman416-mcp-applemusic-flnqtd)
 [![M8ven Live Monitored](https://m8ven.ai/badge/mcp/suleyman416-mcp-applemusic-flnqtd)](https://m8ven.ai/mcp/suleyman416-mcp-applemusic-flnqtd)
 [![Quality: Tier A](https://img.shields.io/badge/Quality-Tier%20A%20(4.5%2F5)-00d992.svg)](https://glama.ai/mcp/servers/suleyman416/mcp-applemusic/score)
 [![Maintenance: Grade B](https://img.shields.io/badge/Maintenance-Grade%20B-f5a623.svg)](https://glama.ai/mcp/servers/suleyman416/mcp-applemusic/score)
 [![License: MIT](https://img.shields.io/badge/License-MIT%20(Grade%20A)-37a169.svg)](https://opensource.org/licenses/MIT)
-[![Tools](https://img.shields.io/badge/Tools-68%20Available-blue.svg)](#complete-suite-of-68-tools)
+[![Tools](https://img.shields.io/badge/Tools-69%20Available-blue.svg)](#complete-suite-of-69-tools)
 
 A comprehensive FastMCP server for controlling Apple Music on macOS with AI agents.
 
-Featuring **68 tools** spanning playback, playlist engineering, listening analytics, Spotify conversion, smart DJ transitions, and audio device control.
+Featuring **69 tools** spanning playback, playlist engineering, listening analytics, Spotify/M3U conversion, smart DJ transitions, and audio device control.
 
 ---
 
@@ -98,7 +99,7 @@ Once connected, you can talk to your AI agent naturally:
 
 ---
 
-## Complete Suite of 68 Tools
+## Complete Suite of 69 Tools
 
 ```python
 # 1. Playback & Track Control
@@ -168,6 +169,7 @@ itunes_list_playlists()                    # List all playlists with track count
 itunes_get_playlist_tracks(playlist)       # Get all tracks in a playlist
 itunes_get_playlist_summary(playlist)      # Get statistical summary (tracks, duration, top artists & songs)
 itunes_export_playlist(playlist, format)   # Export playlist to JSON, CSV, Markdown, or M3U8
+itunes_import_m3u(file_path, playlist)     # Import .m3u / .m3u8 playlist file (Rekordbox, Serato, VLC) into Apple Music
 
 # 7. Listening Journal & Replay Analytics
 itunes_sync_library_history()              # Sync all lifetime play counts and recent plays from iCloud/iPhone

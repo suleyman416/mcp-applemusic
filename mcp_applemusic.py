@@ -702,6 +702,142 @@ def itunes_export_playlist(playlist: str, format: str = "json") -> str:
         return json.dumps({"playlist": playlist, "count": len(items), "tracks": items}, indent=2)
 
 
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=False))
+def itunes_import_m3u(file_path: str, playlist_name: str = "") -> str:
+    """
+    Import a standard .m3u or .m3u8 playlist file (from Rekordbox, Serato, Traktor, VLC, or local backups) into Apple Music.
+
+    Args:
+        file_path: Absolute or relative path to the .m3u or .m3u8 playlist file.
+        playlist_name: Name for the newly created Apple Music playlist. If empty, uses the filename.
+    """
+    if sys.platform != "darwin":
+        return "Error: Playlist import is only supported on macOS."
+
+    path = Path(file_path).expanduser().resolve()
+    if not path.exists():
+        return f"Error: File not found at '{file_path}'"
+
+    target_playlist = playlist_name.strip() if playlist_name.strip() else path.stem
+    target_playlist_esc = target_playlist.replace('"', '\\"')
+
+    try:
+        content = path.read_text(encoding="utf-8", errors="ignore")
+    except Exception as e:
+        return f"Error reading playlist file: {e}"
+
+    lines = [line.strip() for line in content.splitlines() if line.strip()]
+    if not lines:
+        return f"Error: Playlist file '{path.name}' is empty."
+
+    parsed_tracks = []
+    current_artist = ""
+    current_title = ""
+
+    for line in lines:
+        if line.startswith("#EXTM3U") or line.startswith("#PLAYLIST:"):
+            continue
+        elif line.startswith("#EXTINF:"):
+            meta = line.split(",", 1)[1] if "," in line else line[8:]
+            if " - " in meta:
+                parts = meta.split(" - ", 1)
+                current_artist = parts[0].strip()
+                current_title = parts[1].strip()
+            else:
+                current_artist = ""
+                current_title = meta.strip()
+        elif line.startswith("#"):
+            continue
+        else:
+            candidate_path = Path(line).expanduser()
+            if not candidate_path.is_absolute():
+                candidate_path = (path.parent / candidate_path).resolve()
+
+            p_str = str(candidate_path) if candidate_path.exists() else ""
+            t_name = current_title if current_title else Path(line).stem
+            a_name = current_artist
+            parsed_tracks.append((t_name, a_name, p_str))
+            current_artist = ""
+            current_title = ""
+
+    if not parsed_tracks:
+        return f"No tracks could be parsed from '{path.name}'."
+
+    create_script = f"""
+    tell application "Music"
+        if not (exists playlist "{target_playlist_esc}") then
+            make new playlist with properties {{name:"{target_playlist_esc}"}}
+        end if
+    end tell
+    """
+    run_applescript(create_script)
+
+    added_count = 0
+    missing_tracks = []
+
+    for t_name, a_name, file_on_disk in parsed_tracks:
+        added = False
+        if file_on_disk:
+            f_esc = file_on_disk.replace('"', '\\"')
+            add_file_script = f"""
+            tell application "Music"
+                try
+                    add POSIX file "{f_esc}" to playlist "{target_playlist_esc}"
+                    return "ADDED"
+                on error
+                    return "ERROR"
+                end try
+            end tell
+            """
+            res = run_applescript(add_file_script)
+            if res == "ADDED":
+                added_count += 1
+                added = True
+
+        if not added and t_name:
+            t_esc = t_name.replace('"', '\\"')
+            add_lib_script = f"""
+            tell application "Music"
+                set p to playlist "{target_playlist_esc}"
+                set sName to "{t_esc}"
+                repeat with userP in (every user playlist)
+                    if name of userP is not "{target_playlist_esc}" then
+                        try
+                            set tList to (every track of userP whose name contains sName)
+                            if tList is not {{}} then
+                                duplicate item 1 of tList to p
+                                return "ADDED"
+                            end if
+                        end try
+                    end if
+                end repeat
+                return "NOT_FOUND"
+            end tell
+            """
+            res = run_applescript(add_lib_script)
+            if res == "ADDED":
+                added_count += 1
+                added = True
+
+        if not added:
+            label = f"{t_name} — {a_name}" if a_name else t_name
+            missing_tracks.append(label)
+
+    summary = [
+        f"Imported M3U Playlist: '{target_playlist}'",
+        "=" * 42,
+        f"• Successfully added {added_count} of {len(parsed_tracks)} tracks."
+    ]
+    if missing_tracks:
+        summary.append(f"• {len(missing_tracks)} track(s) not found in local library:")
+        for m in missing_tracks[:5]:
+            summary.append(f"  - {m}")
+        if len(missing_tracks) > 5:
+            summary.append(f"  ... and {len(missing_tracks) - 5} more")
+
+    return "\n".join(summary)
+
+
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False))
 def itunes_get_playlist_summary(playlist: str = "") -> str:
     """

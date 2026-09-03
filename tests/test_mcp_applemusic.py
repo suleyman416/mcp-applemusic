@@ -21,9 +21,9 @@ class TestAppleMusicMCP(unittest.TestCase):
     def tearDown(self):
         patch.stopall()
 
-    def test_all_68_tool_annotations_and_hints(self):
+    def test_all_69_tool_annotations_and_hints(self):
         tools = asyncio.run(mcp_am.mcp.list_tools())
-        self.assertEqual(len(tools), 68)
+        self.assertEqual(len(tools), 69)
         for t in tools:
             self.assertIsNotNone(t.annotations)
             self.assertIsInstance(t.annotations.readOnlyHint, bool)
@@ -99,6 +99,13 @@ class TestAppleMusicMCP(unittest.TestCase):
         self.assertIsNotNone(mcp_am.itunes_export_playlist("Test", "csv"))
         self.assertIsNotNone(mcp_am.itunes_export_playlist("Test", "markdown"))
         self.assertIsNotNone(mcp_am.itunes_export_playlist("Test", "m3u8"))
+        with tempfile.NamedTemporaryFile("w", suffix=".m3u8", delete=False) as tf:
+            tf.write("#EXTM3U\n#EXTINF:180,Dave - Location\nLocation.mp3\n")
+            temp_m3u = tf.name
+        try:
+            self.assertIsNotNone(mcp_am.itunes_import_m3u(temp_m3u, "ImportTest"))
+        finally:
+            Path(temp_m3u).unlink(missing_ok=True)
 
     def test_journal_and_replay_analytics(self):
         self.assertIsNotNone(mcp_am.itunes_sync_library_history())
