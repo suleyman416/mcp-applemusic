@@ -21,9 +21,9 @@ class TestAppleMusicMCP(unittest.TestCase):
     def tearDown(self):
         patch.stopall()
 
-    def test_all_69_tool_annotations_and_hints(self):
+    def test_all_71_tool_annotations_and_hints(self):
         tools = asyncio.run(mcp_am.mcp.list_tools())
-        self.assertEqual(len(tools), 69)
+        self.assertEqual(len(tools), 71)
         for t in tools:
             self.assertIsNotNone(t.annotations)
             self.assertIsInstance(t.annotations.readOnlyHint, bool)
@@ -99,6 +99,7 @@ class TestAppleMusicMCP(unittest.TestCase):
         self.assertIsNotNone(mcp_am.itunes_export_playlist("Test", "csv"))
         self.assertIsNotNone(mcp_am.itunes_export_playlist("Test", "markdown"))
         self.assertIsNotNone(mcp_am.itunes_export_playlist("Test", "m3u8"))
+        self.assertIsNotNone(mcp_am.itunes_generate_energy_mix("Test", "warmup_to_peak"))
         with tempfile.NamedTemporaryFile("w", suffix=".m3u8", delete=False) as tf:
             tf.write("#EXTM3U\n#EXTINF:180,Dave - Location\nLocation.mp3\n")
             temp_m3u = tf.name
@@ -118,6 +119,7 @@ class TestAppleMusicMCP(unittest.TestCase):
         self.assertIsNotNone(mcp_am.itunes_list_devices())
         self.assertIsNotNone(mcp_am.itunes_set_device("AirPods"))
         self.assertIsNotNone(mcp_am.itunes_set_device_volume("AirPods", 80))
+        self.assertIsNotNone(mcp_am.itunes_set_multi_room_audio("AirPods", "AirPods:80", 75))
         self.assertIsNotNone(mcp_am.itunes_get_selected_tracks())
         self.assertIsNotNone(mcp_am.itunes_set_miniplayer(True))
         self.assertIsNotNone(mcp_am.itunes_reveal_track("Song"))

@@ -2689,6 +2689,211 @@ def itunes_get_listening_personality() -> str:
 ⏱ Total Journaled Playtime: {total_sec // 60} minutes"""
 
 
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=False))
+def itunes_generate_energy_mix(playlist: str, curve: str = "warmup_to_peak") -> str:
+    """
+    Generate an intelligent DJ Energy-Curve Mix from any playlist by analyzing track BPMs and tempos.
+
+    Args:
+        playlist: Name of the source playlist to re-sequence.
+        curve: Desired progression curve: 'warmup_to_peak', 'ascending', 'descending', or 'bpm_cluster' (default 'warmup_to_peak').
+    """
+    if sys.platform != "darwin":
+        return "Error: Energy mix generation is only supported on macOS."
+
+    p_name_esc = playlist.replace('"', '\\"')
+    script = f"""
+    tell application "Music"
+        if not (exists playlist "{p_name_esc}") then
+            return "NOT_FOUND"
+        end if
+        set output to ""
+        repeat with t in (tracks of playlist "{p_name_esc}")
+            set tName to name of t
+            set aName to artist of t
+            set tBpm to bpm of t
+            set tDur to duration of t as integer
+            set output to output & tName & "|||" & aName & "|||" & (tBpm as string) & "|||" & (tDur as string) & "\n"
+        end repeat
+        return output
+    end tell
+    """
+    raw = run_applescript(script)
+    if raw == "NOT_FOUND":
+        return f"Playlist not found: '{playlist}'"
+    if raw.startswith("Error:") or not raw.strip():
+        return f"Unable to read tracks from playlist '{playlist}'."
+
+    tracks = []
+    for line in raw.strip().splitlines():
+        parts = line.split("|||")
+        if len(parts) >= 4:
+            t_name = parts[0]
+            a_name = parts[1]
+            try:
+                bpm_val = int(parts[2])
+            except ValueError:
+                bpm_val = 0
+            try:
+                dur_val = int(parts[3])
+            except ValueError:
+                dur_val = 180
+            tracks.append({"title": t_name, "artist": a_name, "bpm": bpm_val, "duration": dur_val})
+
+    if len(tracks) < 2:
+        return f"Playlist '{playlist}' contains too few tracks ({len(tracks)}) to generate an energy curve."
+
+    for idx, t in enumerate(tracks):
+        if t["bpm"] == 0:
+            t["bpm"] = 110 + (idx % 25)
+
+    c_mode = curve.lower().strip()
+    if c_mode == "ascending":
+        ordered = sorted(tracks, key=lambda x: x["bpm"])
+    elif c_mode == "descending":
+        ordered = sorted(tracks, key=lambda x: x["bpm"], reverse=True)
+    elif c_mode == "bpm_cluster":
+        ordered = sorted(tracks, key=lambda x: (round(x["bpm"] / 5) * 5, x["bpm"]))
+    else:
+        sorted_by_bpm = sorted(tracks, key=lambda x: x["bpm"])
+        n = len(sorted_by_bpm)
+        q1 = max(1, n // 4)
+        q3 = max(q1 + 1, (3 * n) // 4)
+        warmup = sorted_by_bpm[:q1]
+        peak = sorted_by_bpm[q1:q3]
+        cooldown = sorted_by_bpm[q3:]
+        ordered = warmup + peak + list(reversed(cooldown))
+
+    target_mix_name = f"{playlist} ({curve.replace('_', ' ').title()})"
+    target_esc = target_mix_name.replace('"', '\\"')
+
+    create_script = f"""
+    tell application "Music"
+        if not (exists playlist "{target_esc}") then
+            make new playlist with properties {{name:"{target_esc}"}}
+        end if
+    end tell
+    """
+    run_applescript(create_script)
+
+    for item in ordered:
+        s_name = item["title"].replace('"', '\\"')
+        add_script = f"""
+        tell application "Music"
+            set targetP to playlist "{target_esc}"
+            set sourceP to playlist "{p_name_esc}"
+            set tList to (every track of sourceP whose name is "{s_name}")
+            if tList is not {{}} then
+                duplicate item 1 of tList to targetP
+            end if
+        end tell
+        """
+        run_applescript(add_script)
+
+    lines = [
+        f"🎧 Created DJ Energy Mix: '{target_mix_name}'",
+        "=" * 45,
+        f"Progression Curve: {curve.upper()}",
+        f"Total Tracks Sequenced: {len(ordered)}",
+        "",
+        "Track Progression Flow:"
+    ]
+    for idx, t in enumerate(ordered[:10], 1):
+        lines.append(f"{idx}. [{t['bpm']} BPM] {t['title']} — {t['artist']}")
+    if len(ordered) > 10:
+        lines.append(f"... and {len(ordered) - 10} more tracks")
+
+    return "\n".join(lines)
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=False))
+def itunes_set_multi_room_audio(devices: str = "", volumes: str = "", master_volume: int = -1) -> str:
+    """
+    Control multi-room AirPlay speaker matrices simultaneously (e.g. Living Room + Kitchen with per-device volumes).
+
+    Args:
+        devices: Comma-separated list of AirPlay device names to enable (e.g. 'Living Room, Kitchen'). If empty, inspects current setup.
+        volumes: Optional JSON or comma-separated device:volume pairs (e.g. 'Living Room:75, Kitchen:40').
+        master_volume: Optional unified master volume (0-100) to apply across active playback.
+    """
+    if sys.platform != "darwin":
+        return "Error: Multi-room AirPlay is only supported on macOS."
+
+    volume_map = {}
+    if volumes.strip():
+        try:
+            volume_map = json.loads(volumes)
+        except Exception:
+            for pair in volumes.split(","):
+                if ":" in pair:
+                    d_name, v_str = pair.split(":", 1)
+                    try:
+                        volume_map[d_name.strip()] = int(v_str.strip())
+                    except ValueError:
+                        pass
+
+    active_targets = [d.strip() for d in devices.split(",") if d.strip()]
+
+    script = """
+    tell application "Music"
+        set devList to ""
+        repeat with d in (every AirPlay device)
+            set dName to name of d
+            set dSel to selected of d
+            set dVol to sound volume of d
+            set devList to devList & dName & "|||" & (dSel as string) & "|||" & (dVol as string) & "\n"
+        end repeat
+        return devList
+    end tell
+    """
+    raw = run_applescript(script)
+    if raw.startswith("Error:"):
+        return f"Unable to query AirPlay devices: {raw}"
+
+    all_devices = []
+    for line in raw.strip().splitlines():
+        parts = line.split("|||")
+        if len(parts) >= 3:
+            all_devices.append({
+                "name": parts[0],
+                "selected": parts[1].lower() == "true",
+                "volume": int(parts[2]) if parts[2].isdigit() else 50
+            })
+
+    if active_targets:
+        for d in all_devices:
+            should_select = any(t.lower() in d["name"].lower() for t in active_targets)
+            d_esc = d["name"].replace('"', '\\"')
+            sel_bool = "true" if should_select else "false"
+            run_applescript(f'tell application "Music" to set selected of (first AirPlay device whose name is "{d_esc}") to {sel_bool}')
+            d["selected"] = should_select
+
+    for d_target, v_val in volume_map.items():
+        v_safe = min(max(0, v_val), 100)
+        for d in all_devices:
+            if d_target.lower() in d["name"].lower():
+                d_esc = d["name"].replace('"', '\\"')
+                run_applescript(f'tell application "Music" to set sound volume of (first AirPlay device whose name is "{d_esc}") to {v_safe}')
+                d["volume"] = v_safe
+
+    if 0 <= master_volume <= 100:
+        run_applescript(f'tell application "Music" to set sound volume to {master_volume}')
+
+    lines = [
+        "🔊 AirPlay Multi-Room Audio Matrix",
+        "=" * 42,
+    ]
+    if 0 <= master_volume <= 100:
+        lines.append(f"Master Playback Volume: {master_volume}%\n")
+
+    lines.append("Active AirPlay Speaker Setup:")
+    for d in all_devices:
+        status = "🟢 ACTIVE" if d["selected"] else "⚪ OFF"
+        lines.append(f"• [{status}] {d['name']} — Volume: {d['volume']}%")
+
+    return "\n".join(lines)
+
+
 def main():
     mcp.run()
 

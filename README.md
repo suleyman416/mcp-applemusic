@@ -6,11 +6,11 @@
 [![Quality: Tier A](https://img.shields.io/badge/Quality-Tier%20A%20(4.5%2F5)-00d992.svg)](https://glama.ai/mcp/servers/suleyman416/mcp-applemusic/score)
 [![Maintenance: Grade B](https://img.shields.io/badge/Maintenance-Grade%20B-f5a623.svg)](https://glama.ai/mcp/servers/suleyman416/mcp-applemusic/score)
 [![License: MIT](https://img.shields.io/badge/License-MIT%20(Grade%20A)-37a169.svg)](https://opensource.org/licenses/MIT)
-[![Tools](https://img.shields.io/badge/Tools-69%20Available-blue.svg)](#complete-suite-of-69-tools)
+[![Tools](https://img.shields.io/badge/Tools-71%20Available-blue.svg)](#complete-suite-of-71-tools)
 
 A comprehensive FastMCP server for controlling Apple Music on macOS with AI agents.
 
-Featuring **69 tools** spanning playback, playlist engineering, listening analytics, Spotify/M3U conversion, smart DJ transitions, and audio device control.
+Featuring **71 tools** spanning playback, playlist engineering, listening analytics, Spotify/M3U conversion, smart DJ transitions, and audio device control.
 
 ---
 
@@ -99,7 +99,7 @@ Once connected, you can talk to your AI agent naturally:
 
 ---
 
-## Complete Suite of 69 Tools
+## Complete Suite of 71 Tools
 
 ```python
 # 1. Playback & Track Control
@@ -170,6 +170,7 @@ itunes_get_playlist_tracks(playlist)       # Get all tracks in a playlist
 itunes_get_playlist_summary(playlist)      # Get statistical summary (tracks, duration, top artists & songs)
 itunes_export_playlist(playlist, format)   # Export playlist to JSON, CSV, Markdown, or M3U8
 itunes_import_m3u(file_path, playlist)     # Import .m3u / .m3u8 playlist file (Rekordbox, Serato, VLC) into Apple Music
+itunes_generate_energy_mix(playlist, curve)# Generate DJ energy curve mix (warmup, ascending, peak, cluster)
 
 # 7. Listening Journal & Replay Analytics
 itunes_sync_library_history()              # Sync all lifetime play counts and recent plays from iCloud/iPhone
@@ -182,6 +183,7 @@ itunes_log_current_play()                  # Manually record current track to jo
 itunes_list_devices()                      # List AirPlay audio output devices & active status
 itunes_set_device(device_name)             # Switch audio output device (AirPods, HomePod, TV)
 itunes_set_device_volume(device, volume)   # Set individual volume for specific AirPlay device
+itunes_set_multi_room_audio(devices, vol, master) # Control multi-room AirPlay speaker matrix simultaneously
 itunes_get_selected_tracks()               # Get tracks highlighted by user in Music window
 itunes_set_miniplayer(enabled)             # Toggle MiniPlayer window mode
 itunes_reveal_track(song)                  # Reveal & highlight track in Music window
