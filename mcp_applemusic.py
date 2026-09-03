@@ -2921,120 +2921,177 @@ _auto_dj_state = {
 def _auto_dj_worker(playlist_name: str, style: str, target_bpm: int):
     global _auto_dj_state
     
-    last_known_track = ""
+    played_ids = set()
+    last_known_id = None
     last_known_pos = 0.0
+    
+    def fetch_playlist_tracks():
+        if not playlist_name:
+            target_spec = 'library playlist 1'
+        else:
+            esc_p = playlist_name.replace('"', '\\"')
+            target_spec = f'playlist "{esc_p}"'
+            
+        script = f"""
+        tell application "Music"
+            try
+                set p to {target_spec}
+                set trkList to tracks of p
+                set outList to {{}}
+                repeat with trk in trkList
+                    set end of outList to (id of trk as string) & ":::" & (name of trk) & ":::" & (artist of trk) & ":::" & (duration of trk as string)
+                end repeat
+                set AppleScript's text item delimiters to "|||"
+                return outList as text
+            on error
+                return ""
+            end try
+        end tell
+        """
+        raw = run_applescript(script).strip()
+        if not raw:
+            return []
+            
+        tracks = []
+        for item in raw.split("|||"):
+            parts = item.split(":::")
+            if len(parts) >= 4:
+                try:
+                    t_id = int(parts[0])
+                    t_name = parts[1]
+                    t_artist = parts[2]
+                    t_dur = float(parts[3].replace(",", "."))
+                    tracks.append({
+                        "id": t_id,
+                        "name": t_name,
+                        "artist": t_artist,
+                        "duration": t_dur
+                    })
+                except ValueError:
+                    continue
+        return tracks
+
+    playlist_tracks = fetch_playlist_tracks()
     
     while not _auto_dj_stop_event.is_set():
         try:
-            # Poll player state
-            status_raw = run_applescript('tell application "Music" to get {player state as string, name of current track, artist of current track, player position, duration of current track}')
-            if not status_raw or "error" in status_raw.lower():
-                time.sleep(2.0)
+            if not playlist_tracks:
+                playlist_tracks = fetch_playlist_tracks()
+                if not playlist_tracks:
+                    time.sleep(2.0)
+                    continue
+            
+            # Query current player state with strict delimiter
+            status_script = """
+            tell application "Music"
+                try
+                    set s to player state as string
+                    set t to name of current track
+                    set a to artist of current track
+                    set i to (id of current track as string)
+                    set p to (player position as string)
+                    set d to (duration of current track as string)
+                    set AppleScript's text item delimiters to "|||"
+                    return {s, t, a, i, p, d} as string
+                on error
+                    return "stopped|||None|||None|||0|||0|||0"
+                end try
+            end tell
+            """
+            status_raw = run_applescript(status_script).strip()
+            parts = status_raw.split("|||")
+            if len(parts) < 6:
+                time.sleep(1.5)
                 continue
                 
-            parts = [p.strip() for p in status_raw.split(",")]
-            if len(parts) < 5:
-                time.sleep(2.0)
-                continue
-                
-            state_str, track_name, artist_name, pos_str, dur_str = parts[0], parts[1], parts[2], parts[3], parts[4]
+            state_str = parts[0].strip().lower()
+            track_name = parts[1].strip()
+            artist_name = parts[2].strip()
             
             try:
-                pos = float(pos_str)
-                dur = float(dur_str)
+                cur_id = int(parts[3].strip())
+                pos = float(parts[4].strip().replace(",", "."))
+                dur = float(parts[5].strip().replace(",", "."))
             except ValueError:
-                time.sleep(2.0)
+                time.sleep(1.5)
                 continue
                 
             with _auto_dj_lock:
                 _auto_dj_state["current_track"] = f"{track_name} - {artist_name}"
                 _auto_dj_state["status"] = state_str
                 
+            if cur_id > 0:
+                played_ids.add(cur_id)
+                
             # Detect manual user skip
-            if last_known_track and track_name != last_known_track and pos < 5.0 and last_known_pos < (dur - 15.0):
+            if last_known_id and cur_id != last_known_id and pos < 5.0 and last_known_pos < (dur - 15.0):
                 with _auto_dj_lock:
                     _auto_dj_state["skips_detected"] += 1
                     
-            last_known_track = track_name
+            last_known_id = cur_id
             last_known_pos = pos
             
-            # Check if nearing transition point (default 15s before natural finish or 90s max per track)
-            natural_exit = min(dur - 5.0, 90.0) if dur > 20.0 else dur - 2.0
+            if state_str != "playing":
+                time.sleep(1.5)
+                continue
+                
+            # Natural exit between 75s and 90s, or 4s before end
+            natural_exit = min(dur - 4.0, 85.0) if dur > 25.0 else max(dur - 2.0, 5.0)
             time_remaining = natural_exit - pos
             
-            if 0.0 < time_remaining <= 12.0 and state_str.lower() == "playing":
-                # Pre-warm next track selection
-                target_p = f'playlist "{playlist_name}"' if playlist_name else 'library playlist 1'
+            # Prepare and fire transition when within 3.5 seconds of exit
+            if 0.0 < time_remaining <= 3.5:
+                available = [t for t in playlist_tracks if t["id"] not in played_ids]
+                if not available:
+                    played_ids.clear()
+                    available = [t for t in playlist_tracks if t["id"] != cur_id]
+                    
+                next_t = available[0] if available else playlist_tracks[0]
                 
-                # Dynamic next track selection based on style
-                selector_script = f"""
+                with _auto_dj_lock:
+                    _auto_dj_state["next_up"] = f"{next_t['name']} - {next_t['artist']}"
+                
+                esc_name = playlist_name.replace('"', '\\"')
+                target_spec = f'playlist "{esc_name}"' if playlist_name else 'library playlist 1'
+                target_exit = max(0.0, natural_exit - 0.12)
+                bpm_clause = f'set bpm of nextTrk to {target_bpm}' if target_bpm > 0 else ""
+                
+                transition_script = f"""
                 tell application "Music"
                     try
-                        set tList to tracks of {target_p}
-                        if (count of tList) is 0 then return "NONE"
-                        -- Find next track that is not currently playing
-                        repeat with trk in tList
-                            if name of trk is not "{track_name}" then
-                                return name of trk & "|||" & artist of trk
-                            end if
+                        set nextTrk to (first track of {target_spec} whose id is {next_t['id']})
+                        set start of nextTrk to 0.0
+                        {bpm_clause}
+                        
+                        repeat while player position < {target_exit:.2f}
+                            delay 0.05
                         end repeat
-                    on error
-                        return "NONE"
+                        
+                        play nextTrk
+                        return "SUCCESS"
+                    on error e
+                        return "ERROR: " & e
                     end try
                 end tell
                 """
-                next_cand = run_applescript(selector_script).strip()
-                if next_cand and next_cand != "NONE" and "|||" in next_cand:
-                    n_title, n_artist = next_cand.split("|||", 1)
+                res = run_applescript(transition_script)
+                if "SUCCESS" in res:
+                    played_ids.add(next_t["id"])
                     with _auto_dj_lock:
-                        _auto_dj_state["next_up"] = f"{n_title} - {n_artist}"
+                        _auto_dj_state["transitions_count"] += 1
+                        _auto_dj_state["last_transition"] = f"{track_name} -> {next_t['name']}"
+                        _auto_dj_state["current_track"] = f"{next_t['name']} - {next_t['artist']}"
+                        _auto_dj_state["next_up"] = "Calculating..."
+                    time.sleep(3.0)
+                    continue
                     
-                    # Pre-warm next track properties
-                    pre_warm_script = f"""
-                    tell application "Music"
-                        try
-                            set nextTrk to (first track of {target_p} whose name is "{n_title}")
-                            set start of nextTrk to 0.0
-                            if {target_bpm} > 0 then
-                                set bpm of nextTrk to {target_bpm}
-                            end if
-                            return "WARMED"
-                        on error
-                            return "FAIL"
-                        end try
-                    end tell
-                    """
-                    run_applescript(pre_warm_script)
-                    
-                    # Tight 20ms monitor until transition downbeat
-                    while not _auto_dj_stop_event.is_set():
-                        cur_p = run_applescript('tell application "Music" to get player position').strip()
-                        try:
-                            cp = float(cur_p)
-                            # 120ms look-ahead compensation
-                            if cp >= (natural_exit - 0.12):
-                                # Fire transition!
-                                fire_script = f"""
-                                tell application "Music"
-                                    set nextTrk to (first track of {target_p} whose name is "{n_title}")
-                                    play nextTrk
-                                end tell
-                                """
-                                run_applescript(fire_script)
-                                with _auto_dj_lock:
-                                    _auto_dj_state["transitions_count"] += 1
-                                    _auto_dj_state["last_transition"] = f"{track_name} -> {n_title}"
-                                    _auto_dj_state["current_track"] = f"{n_title} - {n_artist}"
-                                    _auto_dj_state["next_up"] = "Calculating..."
-                                break
-                        except ValueError:
-                            break
-                        time.sleep(0.02)
-            
-            # Normal sleep interval
-            time.sleep(2.0)
+            if time_remaining > 5.0:
+                time.sleep(min(2.0, time_remaining - 4.0))
+            else:
+                time.sleep(0.5)
+                
         except Exception:
-            time.sleep(2.0)
+            time.sleep(1.5)
 
 
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=False))
