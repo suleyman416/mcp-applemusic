@@ -21,9 +21,9 @@ class TestAppleMusicMCP(unittest.TestCase):
     def tearDown(self):
         patch.stopall()
 
-    def test_all_71_tool_annotations_and_hints(self):
+    def test_all_74_tool_annotations_and_hints(self):
         tools = asyncio.run(mcp_am.mcp.list_tools())
-        self.assertEqual(len(tools), 71)
+        self.assertEqual(len(tools), 74)
         for t in tools:
             self.assertIsNotNone(t.annotations)
             self.assertIsInstance(t.annotations.readOnlyHint, bool)
@@ -124,6 +124,9 @@ class TestAppleMusicMCP(unittest.TestCase):
         self.assertIsNotNone(mcp_am.itunes_set_miniplayer(True))
         self.assertIsNotNone(mcp_am.itunes_reveal_track("Song"))
         self.assertIsNotNone(mcp_am.itunes_get_stats())
+        self.assertIsNotNone(mcp_am.itunes_start_auto_dj("dave", "adaptive", 140))
+        self.assertIsNotNone(mcp_am.itunes_get_dj_status())
+        self.assertIsNotNone(mcp_am.itunes_stop_auto_dj())
 
     def test_artist_splitting_helper(self):
         self.assertEqual(mcp_am._split_artists("Dave & Kano"), ["Dave", "Kano"])

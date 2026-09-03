@@ -6,11 +6,11 @@
 [![Quality: Tier A](https://img.shields.io/badge/Quality-Tier%20A%20(4.5%2F5)-00d992.svg)](https://glama.ai/mcp/servers/suleyman416/mcp-applemusic/score)
 [![Maintenance: Grade B](https://img.shields.io/badge/Maintenance-Grade%20B-f5a623.svg)](https://glama.ai/mcp/servers/suleyman416/mcp-applemusic/score)
 [![License: MIT](https://img.shields.io/badge/License-MIT%20(Grade%20A)-37a169.svg)](https://opensource.org/licenses/MIT)
-[![Tools](https://img.shields.io/badge/Tools-71%20Available-blue.svg)](#complete-suite-of-71-tools)
+[![Tools](https://img.shields.io/badge/Tools-74%20Available-blue.svg)](#complete-suite-of-74-tools)
 
 A comprehensive FastMCP server for controlling Apple Music on macOS with AI agents.
 
-Featuring **71 tools** spanning playback, playlist engineering, listening analytics, Spotify/M3U conversion, smart DJ transitions, and audio device control.
+Featuring **74 tools** spanning playback, playlist engineering, autonomous tokenless DJing, listening analytics, Spotify/M3U conversion, smart DJ transitions, and audio device control.
 
 ---
 
@@ -149,6 +149,9 @@ itunes_generate_share_link(song)           # Generate universal share link (song
 itunes_get_top_charts(country, limit)      # Fetch official Apple Music Daily Top 100 Charts
 itunes_get_new_releases(country, limit)    # Fetch official Apple Music latest album releases
 itunes_dj_auto_transition(playlist, crossfade) # Configure smart DJ radio-style crossfades across playlist
+itunes_start_auto_dj(playlist, style, target_bpm) # Launch autonomous tokenless background DJ daemon
+itunes_stop_auto_dj()                      # Stop autonomous DJ daemon and return to passive mode
+itunes_get_dj_status()                     # View live telemetry HUD of autonomous DJ daemon
 itunes_get_listening_personality()         # AI analysis of your listening archetype & signature vibes
 
 # 6. Playlist & Folder Management
