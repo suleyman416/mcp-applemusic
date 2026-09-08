@@ -1,5 +1,9 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
-name = "mcp-applemusic"
+name = "apple-music-mcp"
 version = "0.2.5"
 description = "A comprehensive 74-tool FastMCP server for Apple Music on macOS with autonomous tokenless DJ daemon, DJ energy mixes, multi-room AirPlay, Spotify/M3U playlist importers, listening journal, and Apple Replay analytics."
 readme = "README.md"
@@ -47,4 +51,10 @@ Repository = "https://github.com/suleyman416/mcp-applemusic"
 Issues = "https://github.com/suleyman416/mcp-applemusic/issues"
 
 [project.scripts]
+apple-music-mcp = "mcp_applemusic:main"
 mcp-applemusic = "mcp_applemusic:main"
+
+[tool.hatch.build.targets.wheel]
+include = [
+    "mcp_applemusic.py"
+]

@@ -41,7 +41,7 @@ To automatically install and configure for Claude Desktop via [Smithery](https:/
 npx -y @smithery/cli install suleyman416/mcp-applemusic --client claude
 ```
 
-### Option 2: Claude Desktop (Manual)
+### Option 2: Claude Desktop
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
@@ -49,25 +49,27 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "applemusic": {
       "command": "uvx",
-      "args": ["git+https://github.com/suleyman416/mcp-applemusic.git"]
+      "args": ["apple-music-mcp"]
     }
   }
 }
 ```
 
-### Option 3: Cursor / Windsurf / VS Code (Cline & Roo Code)
-Add to your MCP settings:
+### Option 3: Cursor / Windsurf / VS Code
+Add to your MCP settings (`.cursor/mcp.json` or Cline/Roo settings):
 
 ```json
 {
   "mcpServers": {
     "applemusic": {
       "command": "uvx",
-      "args": ["git+https://github.com/suleyman416/mcp-applemusic.git"]
+      "args": ["apple-music-mcp"]
     }
   }
 }
 ```
+
+*(Alternatively via Git URL: `"args": ["git+https://github.com/suleyman416/mcp-applemusic.git"]`)*
 
 > **macOS Permission Note**: When running for the first time, macOS will ask permission for your AI client or terminal to control *Music.app*. Click **Allow** (or check *System Settings ➔ Privacy & Security ➔ Automation*).
 
