@@ -1,4 +1,6 @@
+# Python & FastMCP build artifacts
 mcp_applemusic.egg-info
 .vscode
-
 *.pyc
+__pycache__/
+.pytest_cache/

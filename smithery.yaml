@@ -1,3 +1,4 @@
+# 74-Tool Apple Music FastMCP Server
 startCommand:
   type: stdio
   config:

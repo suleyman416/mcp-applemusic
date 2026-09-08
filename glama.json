@@ -1,6 +1,6 @@
 {
   "$schema": "https://glama.ai/mcp/schema.json",
   "name": "mcp-applemusic",
-  "description": "A 66-tool FastMCP server for controlling Apple Music on macOS.",
+  "description": "A comprehensive 74-tool FastMCP server for controlling Apple Music on macOS with autonomous DJ daemon, DJ energy mixes, multi-room AirPlay, and Apple Replay analytics.",
   "runtime": "python"
 }
