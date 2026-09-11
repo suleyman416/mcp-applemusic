@@ -12,7 +12,23 @@ import urllib.request
 from typing import Optional, List, Dict, Any
 
 from mcp.server.fastmcp import FastMCP
-from mcp.types import ToolAnnotations
+try:
+    from mcp.types import ToolAnnotations
+except ImportError:
+    class ToolAnnotations:  # type: ignore
+        def __init__(
+            self,
+            readOnlyHint: bool = False,
+            destructiveHint: bool = False,
+            idempotentHint: bool = False,
+            openWorldHint: bool = False,
+            **kwargs: Any
+        ):
+            self.readOnlyHint = readOnlyHint
+            self.destructiveHint = destructiveHint
+            self.idempotentHint = idempotentHint
+            self.openWorldHint = openWorldHint
+
 
 
 class RateLimiter:

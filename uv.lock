@@ -25,6 +25,17 @@ wheels = [
 ]
 
 [[package]]
+name = "apple-music-mcp"
+version = "0.2.5"
+source = { editable = "." }
+dependencies = [
+    { name = "mcp" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "mcp", specifier = ">=1.2.1,<2.0.0" }]
+
+[[package]]
 name = "certifi"
 version = "2025.1.31"
 source = { registry = "https://pypi.org/simple" }
@@ -127,17 +138,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/fc/30/51e4555826126e395
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4c/0d/6770742a84c8aa1d36c0d628896a380584c5759612e66af7446af07d8775/mcp-1.2.1-py3-none-any.whl", hash = "sha256:579bf9c9157850ebb1344f3ca6f7a3021b0123c44c9f089ef577a7062522f0fd", size = 66453, upload-time = "2025-01-27T16:48:01.93Z" },
 ]
-
-[[package]]
-name = "mcp-applemusic"
-version = "0.2.4"
-source = { virtual = "." }
-dependencies = [
-    { name = "mcp" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "mcp", specifier = ">=1.2.1,<2.0.0" }]
 
 [[package]]
 name = "pydantic"

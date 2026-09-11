@@ -100,7 +100,7 @@ Once connected, you can talk to your AI agent naturally:
 
 ---
 
-## Complete Suite of 71 Tools
+## Complete Suite of 74 Tools
 
 ```python
 # 1. Playback & Track Control
