@@ -223,6 +223,39 @@ _tracker_thread.start()
 # Instantiate the MCP server.
 mcp = FastMCP("iTunesControlServer")
 
+# Backward & forward compatibility layer for ToolAnnotations across mcp 1.x and 2.x
+_orig_tool = mcp.tool
+
+def _tool_compat_wrapper(name: Optional[str] = None, description: Optional[str] = None, annotations: Optional[Any] = None):
+    if callable(name):
+        return _orig_tool(name)
+    try:
+        return _orig_tool(name=name, description=description, annotations=annotations)
+    except TypeError:
+        def custom_decorator(fn):
+            fn._mcp_annotations = annotations
+            return _orig_tool(name=name, description=description)(fn)
+        return custom_decorator
+
+mcp.tool = _tool_compat_wrapper
+
+_orig_list_tools = mcp.list_tools
+
+async def _list_tools_compat_wrapper():
+    tools = await _orig_list_tools()
+    for t in tools:
+        if not hasattr(t, "annotations") or t.annotations is None:
+            tm_tools = getattr(getattr(mcp, "_tool_manager", None), "_tools", {})
+            tool_obj = tm_tools.get(t.name)
+            fn = getattr(tool_obj, "fn", None)
+            ann = getattr(fn, "_mcp_annotations", None)
+            if ann is None:
+                ann = ToolAnnotations()
+            t.annotations = ann
+    return tools
+
+mcp.list_tools = _list_tools_compat_wrapper
+
 
 
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=False))

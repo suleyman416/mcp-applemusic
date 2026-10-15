@@ -69,6 +69,10 @@ Add to your MCP settings (`.cursor/mcp.json` or Cline/Roo settings):
 }
 ```
 
+### Option 4: AI Agent Skill (Claude Code / Cursor / Codex / Agensi)
+If your agent supports the open `SKILL.md` standard, install the bundled skill from [`skills/apple-music-dj`](skills/apple-music-dj):
+- Automatically arms your agent with professional harmonic mixing, downbeat phrasing, volume discipline, and zero-latency transition protocols.
+
 *(Alternatively via Git URL: `"args": ["git+https://github.com/suleyman416/mcp-applemusic.git"]`)*
 
 > **macOS Permission Note**: When running for the first time, macOS will ask permission for your AI client or terminal to control *Music.app*. Click **Allow** (or check *System Settings ➔ Privacy & Security ➔ Automation*).
