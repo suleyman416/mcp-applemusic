@@ -48,6 +48,7 @@ Repository = "https://github.com/suleyman416/mcp-applemusic"
 "Privacy Policy" = "https://github.com/suleyman416/mcp-applemusic/blob/main/PRIVACY.md"
 "Glama Registry" = "https://glama.ai/mcp/servers/suleyman416/mcp-applemusic"
 "Smithery Registry" = "https://smithery.ai/server/suleyman416/mcp-applemusic"
+"Agensi Skill" = "https://agensi.io/skills/apple-music-dj-controller"
 Issues = "https://github.com/suleyman416/mcp-applemusic/issues"
 
 [project.scripts]

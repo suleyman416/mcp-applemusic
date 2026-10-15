@@ -2,6 +2,7 @@
 
 [![Glama Score](https://glama.ai/mcp/servers/suleyman416/mcp-applemusic/badges/score.svg)](https://glama.ai/mcp/servers/suleyman416/mcp-applemusic)
 [![M8ven Score](https://m8ven.ai/badge/mcp/suleyman416-mcp-applemusic-flnqtd?v=d6196bf00343aab3f85048ade9c002a1)](https://m8ven.ai/mcp/suleyman416-mcp-applemusic-flnqtd)
+[![Agensi Skill](https://img.shields.io/badge/Agensi-5.0%20%E2%98%85%20(Verified)-7952eb.svg)](https://agensi.io/skills/apple-music-dj-controller)
 [![Quality: Tier A](https://img.shields.io/badge/Quality-Tier%20A%20(4.5%2F5)-00d992.svg)](https://glama.ai/mcp/servers/suleyman416/mcp-applemusic/score)
 [![Maintenance: Grade B](https://img.shields.io/badge/Maintenance-Grade%20B-f5a623.svg)](https://glama.ai/mcp/servers/suleyman416/mcp-applemusic/score)
 [![License: MIT](https://img.shields.io/badge/License-MIT%20(Grade%20A)-37a169.svg)](https://opensource.org/licenses/MIT)
@@ -69,8 +70,16 @@ Add to your MCP settings (`.cursor/mcp.json` or Cline/Roo settings):
 }
 ```
 
-### Option 4: AI Agent Skill (Claude Code / Cursor / Codex / Agensi)
-If your agent supports the open `SKILL.md` standard, install the bundled skill from [`skills/apple-music-dj`](skills/apple-music-dj):
+### Option 4: 1-Click Install via Agensi Marketplace
+Install the verified [Apple Music DJ & Controller skill on Agensi](https://agensi.io/skills/apple-music-dj-controller) directly into Claude Code, Cursor, Copilot, and 20+ other agents:
+
+```bash
+# If using the Agensi MCP connector:
+get_skill("apple-music-dj-controller")
+```
+
+### Option 5: Manual Agent Skill (`SKILL.md`)
+If your agent supports the open `SKILL.md` standard locally, install the bundled skill from [`skills/apple-music-dj`](skills/apple-music-dj):
 - Automatically arms your agent with professional harmonic mixing, downbeat phrasing, volume discipline, and zero-latency transition protocols.
 
 *(Alternatively via Git URL: `"args": ["git+https://github.com/suleyman416/mcp-applemusic.git"]`)*
